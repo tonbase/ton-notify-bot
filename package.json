@@ -1,0 +1,25 @@
+{
+  "name": "ton-notify-bot",
+  "version": "0.0.1",
+  "description": "🚀 The bot can notify users about new events of TON addresses.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tonbase/ton-notify-bot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tonbase/ton-notify-bot/issues"
+  },
+  "homepage": "https://github.com/tonbase/ton-notify-bot#readme",
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "mongoose": "^6.0.5",
+    "telegraf": "^3.39.0",
+    "telegraf-i18n": "^6.6.0"
+  }
+}
