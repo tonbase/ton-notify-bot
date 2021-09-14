@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const addressSchema = new mongoose.Schema(
   {
@@ -8,9 +8,9 @@ const addressSchema = new mongoose.Schema(
     isDeleted: { type: Boolean, default: false },
     notifications: { type: Boolean, default: true },
   },
-  { versionKey: false, timestamps: true }
+  { versionKey: false, timestamps: true },
 );
 
 addressSchema.index({ userId: 1, address: 1 }, { unique: true });
 
-module.exports = mongoose.model("address", addressSchema);
+module.exports = mongoose.model('address', addressSchema);

@@ -1,0 +1,34 @@
+welcome: |
+  I can send you instant notifications about all the events of the <a href="https://ton.org/">TON</a> Blockchain.
+
+  Send me an address or <code>address:tag</code> to add it.
+
+  /list – manage your alerts
+
+address:
+  added: |
+    <a href="https://ton.sh/address/${address}">${address}</a> (${tag}) has been added.
+
+    You'll be notified about all events for the address.
+  chosen: |
+    Here it is: ${tag} <a href="https://ton.sh/address/${address}">${address}</a>.
+
+    What do you want to do with the address?
+  send-tag: |
+    Send me a tag for this address: <a href="https://ton.sh/address/${address}">${address}</a>
+
+    For example: <i>My Address</i> and etc.
+  tag-edited: |
+    Tag for <a href="https://ton.sh/address/${address}">this address</a> has been saved.
+  deleted: |
+    This address <a href="https://ton.sh/address/${address}">${address}</a> (${tag}) has been deleted.
+
+list:
+  choose-address: |
+    Choose an address from the list below:
+  empty: |
+    😔 You have no added addresses.
+
+    Send me the <a href="https://ton.org/">TON</a> address to receive instant notifications about all events for the address.
+
+    Also, you can send me <code>address:tag</code> to add an address with the tag.

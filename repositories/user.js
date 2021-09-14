@@ -1,4 +1,4 @@
-const UserModel = require("../models/user");
+const UserModel = require('../models/user');
 
 class UserRepository {
   getOneById(id) {

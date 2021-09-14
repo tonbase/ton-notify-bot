@@ -1,4 +1,4 @@
-const AddressModel = require("../models/address");
+const AddressModel = require('../models/address');
 
 class AddressRepository {
   getOneById(id) {
@@ -22,7 +22,7 @@ class AddressRepository {
             { $skip: offset },
             { $limit: limit },
           ],
-          totalCount: [{ $match: { userId } }, { $count: "count" }],
+          totalCount: [{ $match: { userId } }, { $count: 'count' }],
         },
       },
     ]);
@@ -41,28 +41,28 @@ class AddressRepository {
   turnOnNotifications(addressId) {
     return AddressModel.updateOne(
       { _id: addressId },
-      { $set: { notifications: true } }
+      { $set: { notifications: true } },
     );
   }
 
   turnOfNotifications(addressId) {
     return AddressModel.updateOne(
       { _id: addressId },
-      { $set: { notifications: false } }
+      { $set: { notifications: false } },
     );
   }
 
   softDeleteOne(addressId) {
     return AddressModel.updateOne(
       { _id: addressId },
-      { $set: { isDeleted: true } }
+      { $set: { isDeleted: true } },
     );
   }
 
   restoreOne(addressId) {
     return AddressModel.updateOne(
       { _id: addressId },
-      { $set: { isDeleted: false } }
+      { $set: { isDeleted: false } },
     );
   }
 }
