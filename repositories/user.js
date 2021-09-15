@@ -20,14 +20,14 @@ class UserRepository {
   softDeleteOne(userId) {
     return UserModel.updateOne(
       { user_id: userId },
-      { $set: { is_deleted: true } },
+      { $set: { is_deactivated: true } },
     )
   }
 
   restoreOne(userId) {
     return UserModel.updateOne(
       { user_id: userId },
-      { $set: { is_deleted: false } },
+      { $set: { is_deactivated: false } },
     )
   }
 }
