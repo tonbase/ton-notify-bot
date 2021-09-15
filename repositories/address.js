@@ -28,7 +28,7 @@ class AddressRepository {
     ])
 
     const { addresses, total_count: totalCount } = result[0]
-    return { addresses, total_count: totalCount[0].count }
+    return { addresses, total_count: totalCount[0] && totalCount[0].count }
   }
 
   create(address) {
