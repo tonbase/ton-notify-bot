@@ -13,7 +13,7 @@ class AddressRepository {
     return AddressModel.find({ address, ...filter });
   }
 
-  async paginationByUserId(userId, offset = 0, limit = 10) {
+  async paginationByUserId(userId, offset = 0, limit) {
     const result = await AddressModel.aggregate([
       {
         $facet: {
@@ -27,7 +27,8 @@ class AddressRepository {
       },
     ]);
 
-    return result[0];
+    const { addresses, totalCount } = result[0];
+    return { addresses, totalCount: totalCount[0].count };
   }
 
   create(address) {
