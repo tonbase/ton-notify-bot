@@ -1,3 +1,4 @@
+const { Extra } = require('telegraf')
 const AddressRepository = require('../repositories/address')
 const pagination = require('../services/pagination')
 const getAddressesListKeyboard = require('../keyboards/addresses_list')
@@ -16,7 +17,10 @@ module.exports = async (ctx) => {
   if (!addresses) {
     return
   }
-  await ctx.editMessageReplyMarkup(
-    getAddressesListKeyboard(addresses, paginationOptions, ctx.i18n),
+  await ctx.editMessageText(
+    ctx.i18n.t('list.choose-address'),
+    Extra.markup(
+      getAddressesListKeyboard(addresses, paginationOptions, ctx.i18n),
+    ),
   )
 }
