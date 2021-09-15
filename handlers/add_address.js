@@ -4,9 +4,12 @@ const TonApi = require('../services/ton_api')
 const getOpenAddressKeyboard = require('../keyboards/open_address')
 const getAddressMenuKeyboard = require('../keyboards/address_menu')
 const formatAddress = require('../utils/format_address')
+const formatTag = require('../utils/format_tag')
 
 module.exports = async (ctx) => {
-  const [address, tag] = ctx.message.text.split(':')
+  const [address = ctx.startPayload, tag] = ctx.match
+    ? ctx.match[0].split(':')
+    : []
 
   const api = new TonApi()
   const response = await api.getAddressInformation(address)
@@ -30,8 +33,11 @@ module.exports = async (ctx) => {
         address,
         tag,
         format_address: formatAddress,
+        format_tag: formatTag,
       }),
-      Extra.markup(getOpenAddressKeyboard(_id, ctx.i18n)).webPreview(false),
+      Extra.markup(getOpenAddressKeyboard(_id, !!tag, ctx.i18n)).webPreview(
+        false,
+      ),
     )
   } catch (err) {
     if (err.code !== 11000) {
@@ -48,7 +54,7 @@ module.exports = async (ctx) => {
       ctx.i18n.t('address.chosen', {
         address,
         format_address: formatAddress,
-        tag: oldTag,
+        tag: oldTag ? ` ${oldTag}` : '',
       }),
       Extra.markup(
         getAddressMenuKeyboard(

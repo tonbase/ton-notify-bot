@@ -13,7 +13,7 @@ module.exports = async (ctx) => {
     ctx.i18n.t('address.chosen', {
       address: address.address,
       format_address: formatAddress,
-      tag: address.tag,
+      tag: address.tag ? ` ${address.tag}` : '',
     }),
     Extra.HTML().markup(getAddressMenuKeyboard(address, ctx.me, ctx.i18n)),
   )

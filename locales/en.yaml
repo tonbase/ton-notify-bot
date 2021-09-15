@@ -7,11 +7,11 @@ welcome: |
 
 address:
   added: |
-    <a href="https://ton.sh/address/${address}">${format_address(address)}</a> (${tag}) has been added.
+    <a href="https://ton.sh/address/${address}">${format_address(address)}</a>${format_tag(tag)} has been added.
 
     You'll be notified about all events for the address.
   chosen: |
-    Here it is: ${tag} <a href="https://ton.sh/address/${address}">${format_address(address)}</a>.
+    Here it is:${tag} <a href="https://ton.sh/address/${address}">${format_address(address)}</a>.
 
     What do you want to do with the address?
   send-tag: |
@@ -21,7 +21,7 @@ address:
   tag-edited: |
     Tag for <a href="https://ton.sh/address/${address}">this address</a> has been saved.
   deleted: |
-    This address <a href="https://ton.sh/address/${address}">${format_address(address)}</a> (${tag}) has been deleted.
+    This address <a href="https://ton.sh/address/${address}">${format_address(address)}</a>${format_tag(tag)} has been deleted.
   share: |
     t.me/${username}?start=${address}
 
@@ -47,9 +47,10 @@ buttons:
     OFF
   notifications: |
     Notifications: ${state}
-  edit-tag: Edit tag
+  edit-tag: Edit Tag
+  set-tag: Set Tag
   share-address: |
     Share Address
-  delete-address: Delete address
+  delete-address: Delete Address
   undo: Undo
-  back: « Back to addresses list
+  back: « Back to Addresses list

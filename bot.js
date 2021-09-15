@@ -11,6 +11,8 @@ const sendAddressesList = require('./handlers/send_addresses_list')
 const changeListPage = require('./handlers/change_list_page')
 const openAddress = require('./handlers/open_address')
 
+const payloadRegex = /^(\w|-){48}/
+
 const i18n = new TelegrafI18n({
   defaultLanguage: 'en',
   directory: path.resolve(__dirname, 'locales'),
@@ -26,6 +28,13 @@ bot.on(
 )
 
 bot.use(i18n)
+
+bot.start(
+  Composer.optional(
+    ({ startPayload }) => startPayload && payloadRegex.test(startPayload),
+    addAddress,
+  ),
+)
 
 bot.start(sendWelcome)
 
