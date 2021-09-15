@@ -7,21 +7,21 @@ welcome: |
 
 address:
   added: |
-    <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a> (${tag}) has been added.
+    <a href="https://ton.sh/address/${address}">${format_address(address)}</a> (${tag}) has been added.
 
     You'll be notified about all events for the address.
   chosen: |
-    Here it is: ${tag} <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>.
+    Here it is: ${tag} <a href="https://ton.sh/address/${address}">${format_address(address)}</a>.
 
     What do you want to do with the address?
   send-tag: |
-    Send me a tag for this address: <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>
+    Send me a tag for this address: <a href="https://ton.sh/address/${address}">${format_address(address)}</a>
 
     For example: <i>My Address</i> and etc.
   tag-edited: |
     Tag for <a href="https://ton.sh/address/${address}">this address</a> has been saved.
   deleted: |
-    This address <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a> (${tag}) has been deleted.
+    This address <a href="https://ton.sh/address/${address}">${format_address(address)}</a> (${tag}) has been deleted.
   share: |
     t.me/${username}?start=${address}
 

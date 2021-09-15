@@ -1,10 +1,10 @@
-const { Markup: m } = require('telegraf');
+const { Markup: m } = require('telegraf')
 
 module.exports = (address, botUsername, i18n) => {
-  const { _id, notifications, address: addressId } = address;
+  const { _id, notifications, address: addressId } = address
   const notificationsState = notifications
     ? i18n.t('buttons.notifications-on')
-    : i18n.t('buttons.notifications-off');
+    : i18n.t('buttons.notifications-off')
 
   return m.inlineKeyboard(
     [
@@ -21,5 +21,5 @@ module.exports = (address, botUsername, i18n) => {
       m.callbackButton(i18n.t('buttons.back'), 'list_0'),
     ],
     { columns: 2 },
-  );
-};
+  )
+}
