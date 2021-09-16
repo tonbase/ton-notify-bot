@@ -13,16 +13,19 @@ class AddressRepository {
     return AddressModel.find({ address, ...filter })
   }
 
-  async paginationByUserId(userId, offset = 0, limit) {
+  async paginationByUserId(userId, offset = 0, limit, filter = {}) {
     const result = await AddressModel.aggregate([
       {
         $facet: {
           addresses: [
-            { $match: { user_id: userId } },
+            { $match: { user_id: userId, ...filter } },
             { $skip: offset },
             { $limit: limit },
           ],
-          total_count: [{ $match: { user_id: userId } }, { $count: 'count' }],
+          total_count: [
+            { $match: { user_id: userId, ...filter } },
+            { $count: 'count' },
+          ],
         },
       },
     ])
@@ -33,6 +36,10 @@ class AddressRepository {
 
   create(address) {
     return AddressModel.create(address)
+  }
+
+  updateOneById(addressId, update) {
+    return AddressModel.updateOne({ _id: addressId }, { $set: update })
   }
 
   updateTag(addressId, tag) {

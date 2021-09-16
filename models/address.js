@@ -4,7 +4,7 @@ const addressSchema = new mongoose.Schema(
   {
     user_id: { type: Number, unique: false, required: true },
     address: { type: String, unique: false, required: true },
-    tag: { type: String },
+    tag: { type: String, default: '' },
     is_deleted: { type: Boolean, default: false },
     notifications: { type: Boolean, default: true },
   },

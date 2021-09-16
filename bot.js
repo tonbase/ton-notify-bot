@@ -14,6 +14,8 @@ const changeListPage = require('./handlers/changeListPage')
 const openAddress = require('./handlers/openAddress')
 const handleEdit = require('./handlers/handleEdit')
 const turnNotifications = require('./handlers/turnNotifications')
+const deleteAddress = require('./handlers/deleteAddress')
+const undoAddressDelete = require('./handlers/undoAddressDelete')
 
 const payloadRegex = /^(\w|-){48}/
 
@@ -56,6 +58,10 @@ bot.action(/(?<=^open_).+/, openAddress)
 bot.action(/(?<=^edit_).+/, handleEdit)
 
 bot.action(/(?<=^notify_).+_(on|off)$/, turnNotifications)
+
+bot.action(/(?<=^delete_).+/, deleteAddress)
+
+bot.action(/(?<=^undo_).+/, Composer.tap(undoAddressDelete), openAddress)
 
 module.exports = (options) =>
   bot.launch(options).then(() => log.info('bot was launched'))

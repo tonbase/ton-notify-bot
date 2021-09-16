@@ -2,7 +2,12 @@ const { PAGINATION_LIMIT } = require('../constants')
 
 module.exports = async (userId, addressRepository, offset) => {
   const { addresses, total_count: totalCount } =
-    await addressRepository.paginationByUserId(userId, offset, PAGINATION_LIMIT)
+    await addressRepository.paginationByUserId(
+      userId,
+      offset,
+      PAGINATION_LIMIT,
+      { is_deleted: false },
+    )
 
   if (!addresses.length) {
     return {}

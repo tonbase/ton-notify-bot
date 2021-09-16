@@ -21,6 +21,13 @@ module.exports = async (ctx) => {
   const addressRepository = new AddressRepository()
   const userId = ctx.from.id
 
+  const addressAddedText = ctx.i18n.t('address.added', {
+    address,
+    tag,
+    format_address: formatAddress,
+    format_tag: formatTag,
+  })
+
   try {
     const { _id } = await addressRepository.create({
       user_id: userId,
@@ -29,12 +36,7 @@ module.exports = async (ctx) => {
     })
 
     return ctx.replyWithHTML(
-      ctx.i18n.t('address.added', {
-        address,
-        tag,
-        format_address: formatAddress,
-        format_tag: formatTag,
-      }),
+      addressAddedText,
       Extra.markup(getOpenAddressKeyboard(_id, !!tag, ctx.i18n)).webPreview(
         false,
       ),
@@ -48,7 +50,22 @@ module.exports = async (ctx) => {
       _id,
       notifications,
       tag: oldTag,
-    } = await addressRepository.getOneByAddress(address)
+      is_deleted: isDeleted,
+    } = await addressRepository.getOneByAddress(address, { user_id: userId })
+
+    if (isDeleted) {
+      await addressRepository.updateOneById(_id, {
+        is_deleted: false,
+        tag: tag || '',
+      })
+
+      return ctx.replyWithHTML(
+        addressAddedText,
+        Extra.markup(getOpenAddressKeyboard(_id, !!tag, ctx.i18n)).webPreview(
+          false,
+        ),
+      )
+    }
 
     return ctx.replyWithHTML(
       ctx.i18n.t('address.chosen', {
