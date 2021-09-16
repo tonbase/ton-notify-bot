@@ -18,7 +18,7 @@ module.exports = (address, botUsername, i18n) => {
         i18n.t('address.share', { address: addressId, username: botUsername }),
       ),
       m.callbackButton(i18n.t('buttons.delete-address'), `delete_${_id}`),
-      m.callbackButton(i18n.t('buttons.back'), 'list_0'),
+      m.callbackButton(i18n.t('buttons.back-to-list'), 'list_0'),
     ],
     { columns: 2 },
   )

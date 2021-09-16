@@ -53,4 +53,5 @@ buttons:
     Share Address
   delete-address: Delete Address
   undo: Undo
-  back: « Back to Addresses list
+  back-to-address: « Back to Address
+  back-to-list: « Back to Addresses list
