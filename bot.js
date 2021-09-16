@@ -1,17 +1,18 @@
-const { Telegraf, Composer, session } = require('telegraf')
+const { Telegraf, Composer, session, Stage } = require('telegraf')
 const TelegrafI18n = require('telegraf-i18n')
 const path = require('path')
 
 const config = require('./config')
 const log = require('./utils/log')
 
-const sendWelcome = require('./handlers/send_welcome')
-const addAddress = require('./handlers/add_address')
-const sendAddressesList = require('./handlers/send_addresses_list')
-const changeListPage = require('./handlers/change_list_page')
-const openAddress = require('./handlers/open_address')
-const handleEdit = require('./handlers/handle_edit')
-const editTag = require('./handlers/edit_tag')
+const editTagScene = require('./scenes/editTag')
+
+const sendWelcome = require('./handlers/sendWelcome')
+const addAddress = require('./handlers/addAddress')
+const sendAddressesList = require('./handlers/sendAddressesList')
+const changeListPage = require('./handlers/changeListPage')
+const openAddress = require('./handlers/openAddress')
+const handleEdit = require('./handlers/handleEdit')
 
 const payloadRegex = /^(\w|-){48}/
 
@@ -20,9 +21,25 @@ const i18n = new TelegrafI18n({
   directory: path.resolve(__dirname, 'locales'),
 })
 
+const stage = new Stage([editTagScene])
+
+stage.start(
+  Composer.optional(
+    ({ startPayload }) => startPayload && payloadRegex.test(startPayload),
+    Composer.tap(addAddress),
+    Stage.leave(),
+  ),
+)
+
+stage.start(Composer.tap(sendWelcome), Stage.leave())
+
+stage.hears(/^(\w|-){48}:.+/, Composer.tap(addAddress), Stage.leave())
+
+stage.command('list', Composer.tap(sendAddressesList), Stage.leave())
+
 const bot = new Telegraf(config.get('bot.token'))
 
-bot.use(session())
+bot.use(session(), i18n, stage)
 
 bot.catch(console.error)
 
@@ -31,51 +48,11 @@ bot.on(
   Composer.tap((ctx) => ctx.answerCbQuery()),
 )
 
-bot.use(i18n)
-
-bot.use(
-  Composer.tap((ctx) => {
-    if (!ctx.session.address_id_for_edit) {
-      return
-    }
-
-    const text = ctx.message && ctx.message.text
-    if (
-      text &&
-      text !== '/list' &&
-      text !== '/start' &&
-      !payloadRegex.test(text)
-    ) {
-      return
-    }
-
-    delete ctx.session.address_id_for_edit
-  }),
-)
-
-bot.start(
-  Composer.optional(
-    ({ startPayload }) => startPayload && payloadRegex.test(startPayload),
-    addAddress,
-  ),
-)
-
-bot.start(sendWelcome)
-
-bot.command('list', sendAddressesList)
-
 bot.action(/(?<=^list_)\d+/, changeListPage)
 
 bot.action(/(?<=^open_).+/, openAddress)
 
 bot.action(/(?<=^edit_).+/, handleEdit)
-
-bot.hears(/^(\w|-){48}:.+/, addAddress)
-
-bot.on(
-  'text',
-  Composer.optional((ctx) => ctx.session.address_id_for_edit, editTag),
-)
 
 module.exports = (options) =>
   bot.launch(options).then(() => log.info('bot was launched'))

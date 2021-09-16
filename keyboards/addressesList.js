@@ -1,5 +1,5 @@
 const { Markup: m } = require('telegraf')
-const formatAddress = require('../utils/format_address')
+const formatAddress = require('../utils/formatAddress')
 
 module.exports = (addresses, pagination, i18n) => {
   const buttons = addresses.map(({ _id, address, tag }) => {

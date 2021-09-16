@@ -1,7 +1,7 @@
 const { Extra } = require('telegraf')
 const AddressRepository = require('../repositories/address')
-const getAddressMenuKeyboard = require('../keyboards/address_menu')
-const formatAddress = require('../utils/format_address')
+const getAddressMenuKeyboard = require('../keyboards/addressMenu')
+const formatAddress = require('../utils/formatAddress')
 
 module.exports = async (ctx) => {
   const [addressId] = ctx.match

@@ -1,10 +1,10 @@
 const { Extra } = require('telegraf')
 const AddressRepository = require('../repositories/address')
-const TonApi = require('../services/ton_api')
-const getOpenAddressKeyboard = require('../keyboards/open_address')
-const getAddressMenuKeyboard = require('../keyboards/address_menu')
-const formatAddress = require('../utils/format_address')
-const formatTag = require('../utils/format_tag')
+const TonApi = require('../services/tonApi')
+const getOpenAddressKeyboard = require('../keyboards/openAddress')
+const getAddressMenuKeyboard = require('../keyboards/addressMenu')
+const formatAddress = require('../utils/formatAddress')
+const formatTag = require('../utils/formatTag')
 
 module.exports = async (ctx) => {
   const [address = ctx.startPayload, tag] = ctx.match
@@ -15,7 +15,7 @@ module.exports = async (ctx) => {
   const response = await api.getAddressInformation(address)
 
   if (!response.ok) {
-    return
+    return false
   }
 
   const addressRepository = new AddressRepository()
@@ -28,7 +28,7 @@ module.exports = async (ctx) => {
       tag,
     })
 
-    await ctx.replyWithHTML(
+    return ctx.replyWithHTML(
       ctx.i18n.t('address.added', {
         address,
         tag,
@@ -50,7 +50,7 @@ module.exports = async (ctx) => {
       tag: oldTag,
     } = await addressRepository.getOneByAddress(address)
 
-    await ctx.replyWithHTML(
+    return ctx.replyWithHTML(
       ctx.i18n.t('address.chosen', {
         address,
         format_address: formatAddress,

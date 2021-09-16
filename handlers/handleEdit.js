@@ -1,7 +1,7 @@
 const { Extra } = require('telegraf')
 const AddressRepository = require('../repositories/address')
-const getBackToAddressKeyboard = require('../keyboards/back_to_address')
-const formatAddress = require('../utils/format_address')
+const getBackToAddressKeyboard = require('../keyboards/backToAddress')
+const formatAddress = require('../utils/formatAddress')
 
 module.exports = async (ctx) => {
   const [addressId] = ctx.match
@@ -10,17 +10,17 @@ module.exports = async (ctx) => {
   const {
     _id,
     address,
-    is_deleted: isDelete,
+    is_deleted: isDeleted,
   } = await addressRepository.getOneById(addressId)
 
-  if (isDelete) {
-    return
+  if (isDeleted) {
+    return false
   }
-
-  ctx.session.address_id_for_edit = _id
 
   await ctx.editMessageText(
     ctx.i18n.t('address.send-tag', { address, format_address: formatAddress }),
     Extra.HTML().markup(getBackToAddressKeyboard(_id, ctx.i18n)),
   )
+
+  return ctx.scene.enter('editTag', { address_id: addressId })
 }
