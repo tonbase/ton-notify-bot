@@ -1,8 +1,8 @@
-require('dotenv').config();
+const config = require('./config')
 const mongoose = require('mongoose');
 const startBot = require('./bot');
 
 mongoose
-  .connect(process.env.MONGODB_URI)
+  .connect(config.get('db'))
   .then(() => startBot())
   .catch(console.error);

@@ -2,6 +2,9 @@ const { Telegraf, Composer } = require('telegraf');
 const TelegrafI18n = require('telegraf-i18n');
 const path = require('path');
 
+const config = require('./config')
+const log = require('./utils/log')
+
 const sendWelcome = require('./handlers/send-welcome');
 const addAddress = require('./handlers/add-address');
 const sendAddressesList = require('./handlers/send-addresses-list');
@@ -13,7 +16,7 @@ const i18n = new TelegrafI18n({
   directory: path.resolve(__dirname, 'locales'),
 });
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+const bot = new Telegraf(config.get('bot.token'));
 
 bot.catch(console.error);
 
@@ -34,4 +37,5 @@ bot.action(/(?<=^open_).+/, openAddress);
 
 bot.hears(/^(\w|-){48}:.+/, addAddress);
 
-module.exports = (options) => bot.launch(options);
+module.exports = (options) => bot.launch(options)
+  .then(() => log.info('bot was launched'));

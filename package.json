@@ -17,11 +17,15 @@
   },
   "homepage": "https://github.com/tonbase/ton-notify-bot#readme",
   "dependencies": {
+    "chalk": "^4.1.2",
+    "convict": "^5.2.1",
     "dotenv": "^10.0.0",
     "mongoose": "^6.0.5",
     "node-fetch": "^2.6.2",
     "telegraf": "^3.39.0",
-    "telegraf-i18n": "^6.6.0"
+    "telegraf-i18n": "^6.6.0",
+    "tonweb": "0.0.20",
+    "winston": "^3.3.3"
   },
   "devDependencies": {
     "eslint": "^7.32.0",
