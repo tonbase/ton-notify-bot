@@ -10,7 +10,7 @@ module.exports = (address, botUsername, i18n) => {
     [
       m.callbackButton(
         i18n.t('buttons.notifications', { state: notificationsState }),
-        `notify_${notifications ? 'on' : 'off'}`,
+        `notify_${_id}_${notifications ? 'on' : 'off'}`,
       ),
       m.callbackButton(i18n.t('buttons.edit-tag'), `edit_${_id}`),
       m.switchToChatButton(

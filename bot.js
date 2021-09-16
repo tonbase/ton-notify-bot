@@ -13,6 +13,7 @@ const sendAddressesList = require('./handlers/sendAddressesList')
 const changeListPage = require('./handlers/changeListPage')
 const openAddress = require('./handlers/openAddress')
 const handleEdit = require('./handlers/handleEdit')
+const turnNotifications = require('./handlers/turnNotifications')
 
 const payloadRegex = /^(\w|-){48}/
 
@@ -53,6 +54,8 @@ bot.action(/(?<=^list_)\d+/, changeListPage)
 bot.action(/(?<=^open_).+/, openAddress)
 
 bot.action(/(?<=^edit_).+/, handleEdit)
+
+bot.action(/(?<=^notify_).+_(on|off)$/, turnNotifications)
 
 module.exports = (options) =>
   bot.launch(options).then(() => log.info('bot was launched'))
