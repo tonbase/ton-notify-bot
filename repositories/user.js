@@ -17,6 +17,10 @@ class UserRepository {
     return UserModel.create(user)
   }
 
+  getOneAndUpdateByTgId(userId, update) {
+    return UserModel.findOneAndUpdate({ user_id: userId }, { $set: update })
+  }
+
   softDeleteOne(userId) {
     return UserModel.updateOne(
       { user_id: userId },

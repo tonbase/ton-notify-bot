@@ -19,6 +19,6 @@ module.exports = async (ctx) => {
       format_address: formatAddress,
       format_tag: formatTag,
     }),
-    Extra.HTML().markup(getUndoDeleteKeyboard(_id, ctx.i18n)),
+    Extra.HTML().markup(getUndoDeleteKeyboard(_id, false, ctx.i18n)),
   )
 }
