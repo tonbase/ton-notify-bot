@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/tonbase/ton-notify-bot#readme",
   "dependencies": {
+    "bull": "^3.29.2",
     "chalk": "^4.1.2",
     "convict": "^5.2.1",
     "dotenv": "^10.0.0",

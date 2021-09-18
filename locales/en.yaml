@@ -5,6 +5,17 @@ welcome: |
 
   /list – manage your alerts
 
+transaction:
+  message: |
+    🏷 ${type} 👤 <a href="https://ton.sh/address/${from}">${from_tag}</a> ⟶ <a href="https://ton.sh/address/${to}">${to_tag}</a>
+
+    💎 ${value} TON
+
+    ${comment}
+  comment: 💬 ${text}
+  receive: Receive
+  send: Send
+
 address:
   added: |
     <a href="https://ton.sh/address/${address}">${format_address(address)}</a>${format_tag(tag)} has been added.

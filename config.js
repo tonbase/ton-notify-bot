@@ -15,6 +15,12 @@ const config = convict({
     default: 'mongodb://localhost:27017/ton-notify',
     env: 'MONGODB_URI',
   },
+  redis: {
+    doc: 'Redis connection url.',
+    format: String,
+    default: 'redis://127.0.0.1:6379',
+    env: 'REDIS_URI',
+  },
   bot: {
     token: {
       doc: 'Telegram Bot token.',

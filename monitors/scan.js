@@ -7,8 +7,26 @@ const config = require('../config')
 const ton = require('../services/ton')
 const log = require('../utils/log')
 const Block = require('../models/block')
+const transactionQueue = require('../queues/transaction')
 
 let IS_RUNNING = false
+
+const addTransactionToQueue = (transaction) => {
+  const { in_msg: inMessage } = transaction
+  const isInTransaction = inMessage.source && inMessage.destination && inMessage.value > 0
+
+  if (!isInTransaction) {
+    return false
+  }
+  const comment = inMessage?.msg_data?.text
+
+  transactionQueue.add({
+    from: inMessage.source,
+    to: inMessage.destination,
+    value: inMessage.value / 1000000000,
+    comment: comment && ton.utils.base64toString(comment),
+  })
+}
 
 const scanAddresses = async () => {
   if (IS_RUNNING) {
@@ -22,31 +40,40 @@ const scanAddresses = async () => {
   const transactionsQueue = []
 
   const masterchainInfo = await ton.provider.send('getMasterchainInfo', {})
-  const lastEnqueuedMaster = await Block.findOne({ type: 'master' })
-    .sort({ seqno: 'desc' })
+  const lastEnqueuedMaster = await Block.findOne({ type: 'master' }).sort({
+    seqno: 'desc',
+  })
 
-  if (!lastEnqueuedMaster) { // initialize blocks db if there is no known master yet
+  if (!lastEnqueuedMaster) {
+    // initialize blocks db if there is no known master yet
     await Block.create({
       type: 'master',
       seqno: masterchainInfo.last.seqno,
     })
-    const { shards } = await ton.provider.send('shards', { seqno: masterchainInfo.last.seqno })
+    const { shards } = await ton.provider.send('shards', {
+      seqno: masterchainInfo.last.seqno,
+    })
     for (const shard of shards) {
-      await Block.findOneAndUpdate({
-        type: 'shard',
-        workchain: shard.workchain,
-        shard: shard.shard,
-        seqno: shard.seqno,
-        root_hash: shard.root_hash,
-        file_hash: shard.file_hash,
-      }, {}, {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      })
+      await Block.findOneAndUpdate(
+        {
+          type: 'shard',
+          workchain: shard.workchain,
+          shard: shard.shard,
+          seqno: shard.seqno,
+          root_hash: shard.root_hash,
+          file_hash: shard.file_hash,
+        },
+        {},
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+        },
+      )
       log.info(`Enqueued shard block ${shard.shard}#${shard.seqno}`)
     }
     await Block.updateMany({}, { $set: { processed: true } })
+    IS_RUNNING = false
     return
   }
 
@@ -61,29 +88,28 @@ const scanAddresses = async () => {
   }
   await Block.create(preparedMasters)
 
-  const enqueuedMasters = await Block
-    .find({
-      type: 'master',
-      processed: false,
-    })
+  const enqueuedMasters = await Block.find({
+    type: 'master',
+    processed: false,
+  })
     .sort({ seqno: 'asc' })
     .limit(30)
 
   for (const master of enqueuedMasters) {
     log.info(`Processing master block #${master.seqno}`)
-    const { shards } = await ton.provider.send('shards', { seqno: master.seqno })
+    const { shards } = await ton.provider.send('shards', {
+      seqno: master.seqno,
+    })
     for (const shard of shards) {
       shardsToEnqueue.push(shard)
     }
     processedBlockIds.push(master._id)
   }
 
-  const enqueuedShards = await Block
-    .find({
-      type: 'shard',
-      processed: false,
-    })
-    .sort({ seqno: 'asc' })
+  const enqueuedShards = await Block.find({
+    type: 'shard',
+    processed: false,
+  }).sort({ seqno: 'asc' })
 
   for (const shard of enqueuedShards) {
     const blockHeader = await ton.provider.send('getBlockHeader', {
@@ -106,10 +132,19 @@ const scanAddresses = async () => {
       root_hash: shard.root_hash,
       file_hash: shard.file_hash,
     })
-    log.info(`Processing shard block ${shard.shard}#${shard.seqno} - ${new Date() - startGetBlockTxTime} ms`)
+    log.info(
+      `Processing shard block ${shard.shard}#${shard.seqno} - ${
+        new Date() - startGetBlockTxTime
+      } ms`,
+    )
 
     for (const transaction of transactions) {
-      transaction.address = new ton.utils.Address(transaction.account).toString(true, true, true, false)
+      transaction.address = new ton.utils.Address(transaction.account).toString(
+        true,
+        true,
+        true,
+        false,
+      )
       log.info(`adding ${transaction.address} to queue`)
       transactionsQueue.push(transaction)
     }
@@ -119,24 +154,31 @@ const scanAddresses = async () => {
 
   const startSaveShardsTime = new Date()
   for (const shard of shardsToEnqueue) {
-    await Block.findOneAndUpdate({
-      type: 'shard',
-      workchain: shard.workchain,
-      shard: shard.shard,
-      seqno: shard.seqno,
-      root_hash: shard.root_hash,
-      file_hash: shard.file_hash,
-    }, {}, {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true,
-    })
+    await Block.findOneAndUpdate(
+      {
+        type: 'shard',
+        workchain: shard.workchain,
+        shard: shard.shard,
+        seqno: shard.seqno,
+        root_hash: shard.root_hash,
+        file_hash: shard.file_hash,
+      },
+      {},
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      },
+    )
   }
   log.info(`Save ${shardsToEnqueue.length} shards - ${new Date() - startSaveShardsTime} ms`)
   // update processed flag
-  await Block.updateMany({
-    _id: { $in: processedBlockIds },
-  }, { $set: { processed: true } })
+  await Block.updateMany(
+    {
+      _id: { $in: processedBlockIds },
+    },
+    { $set: { processed: true } },
+  )
 
   j(transactionsQueue)
   for (const transaction of transactionsQueue) {
@@ -148,6 +190,7 @@ const scanAddresses = async () => {
     })
 
     j(transactions[0])
+    addTransactionToQueue(transactions[0])
   }
 
   IS_RUNNING = false
@@ -155,5 +198,15 @@ const scanAddresses = async () => {
 
 mongoose
   .connect(config.get('db'))
-  .then(() => setInterval(scanAddresses, config.get('synchronizer.interval')))
+  .then(() => Block.deleteMany())
+  .then(() =>
+    setInterval(
+      () =>
+        scanAddresses().catch((err) => {
+          IS_RUNNING = false
+          console.error(err)
+        }),
+      config.get('synchronizer.interval'),
+    ),
+  )
   .catch(console.error)

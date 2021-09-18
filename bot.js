@@ -1,6 +1,6 @@
 const { Telegraf, Composer, session, Stage } = require('telegraf')
-const TelegrafI18n = require('telegraf-i18n')
-const path = require('path')
+
+const i18n = require('./i18n')
 
 const config = require('./config')
 const log = require('./utils/log')
@@ -22,11 +22,6 @@ const blockDetection = require('./middlewares/blockDetection')
 const auth = require('./middlewares/auth')
 
 const payloadRegex = /^(\w|-){48}/
-
-const i18n = new TelegrafI18n({
-  defaultLanguage: 'en',
-  directory: path.resolve(__dirname, 'locales'),
-})
 
 const stage = new Stage([editTagScene])
 

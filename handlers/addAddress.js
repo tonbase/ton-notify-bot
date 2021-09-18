@@ -1,6 +1,6 @@
 const { Extra } = require('telegraf')
 const AddressRepository = require('../repositories/address')
-const TonApi = require('../services/tonApi')
+const ton = require('../services/ton')
 const getOpenAddressKeyboard = require('../keyboards/openAddress')
 const getAddressMenuKeyboard = require('../keyboards/addressMenu')
 const formatAddress = require('../utils/formatAddress')
@@ -11,10 +11,9 @@ module.exports = async (ctx) => {
     ? ctx.match[0].split(':')
     : []
 
-  const api = new TonApi()
-  const response = await api.getAddressInformation(address)
-
-  if (!response.ok) {
+  try {
+    await ton.provider.send('getAddressInformation', { address })
+  } catch (err) {
     return false
   }
 

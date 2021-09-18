@@ -10,7 +10,8 @@ class AddressRepository {
   }
 
   getByAddress(address, filter = {}) {
-    return AddressModel.find({ address, ...filter })
+    const wrapped = Array.isArray(address) ? address : [address]
+    return AddressModel.find({ address: { $in: wrapped }, ...filter })
   }
 
   async paginationByUserId(userId, offset = 0, limit, filter = {}) {
