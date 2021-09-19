@@ -9,7 +9,7 @@ module.exports = async (ctx) => {
   const addressRepository = new AddressRepository()
   const address = await addressRepository.getOneById(addressId)
 
-  await ctx.editMessageText(
+  return ctx.editMessageText(
     ctx.i18n.t('address.chosen', {
       address: address.address,
       formatAddress,
