@@ -33,7 +33,7 @@ const config = convict({
     provider: {
       doc: 'TON API url.',
       format: String,
-      default: 'https://toncenter.com/api/test/v2/jsonRPC',
+      default: 'https://testnet.toncenter.com/api/v2/jsonRPC',
       env: 'TON_PROVIDER',
     },
   },
