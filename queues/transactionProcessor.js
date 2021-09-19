@@ -27,12 +27,21 @@ module.exports = async (job) => {
       return false
     }
 
+    const from =
+      address === transaction.from
+        ? { address, tag, user_id: userId }
+        : addresses.find((el) => el.address === transaction.from)
+    const to =
+      address === transaction.to
+        ? { address, tag, user_id: userId }
+        : addresses.find((el) => el.address === transaction.to)
+
     const type = i18n.t(
       user.language,
       address === transaction.from ? 'transaction.send' : 'transaction.receive',
     )
-    const fromTag = address === transaction.from && tag ? tag : formatAddress(transaction.from)
-    const toTag = address === transaction.to && tag ? tag : formatAddress(transaction.to)
+    const fromTag = from && from.tag ? from.tag : formatAddress(transaction.from)
+    const toTag = to && to.tag ? to.tag : formatAddress(transaction.to)
 
     await telegram.sendMessage(
       userId,
