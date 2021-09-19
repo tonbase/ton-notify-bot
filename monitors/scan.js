@@ -181,7 +181,6 @@ const scanAddresses = async () => {
     { $set: { processed: true } },
   )
 
-  j(transactionsQueue)
   for (const transaction of transactionsQueue) {
     const transactions = await ton.provider.send('getTransactions', {
       address: transaction.address,
@@ -189,8 +188,7 @@ const scanAddresses = async () => {
       hash: ton.utils.bytesToHex(ton.utils.base64ToBytes(transaction.hash)),
       limit: 1,
     })
-
-    j(transactions[0])
+    
     addTransactionToQueue(transactions[0])
   }
 
