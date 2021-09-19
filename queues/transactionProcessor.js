@@ -47,7 +47,7 @@ module.exports = async (job) => {
           ? i18n.t(user.language, 'transaction.comment', { text: transaction.comment })
           : '',
       }),
-      Extra.HTML(),
+      Extra.HTML().webPreview(false),
     )
 
     await timeout(200)
