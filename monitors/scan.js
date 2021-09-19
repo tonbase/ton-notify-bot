@@ -205,9 +205,9 @@ mongoose
       () =>
         scanAddresses().catch((err) => {
           IS_RUNNING = false
-          console.error(err)
+          log.error(`Scan adresses error: ${err}`)
         }),
       config.get('synchronizer.interval'),
     ),
   )
-  .catch(console.error)
+  .catch((err) => log.error(`Monitor initialization error: ${err}`))

@@ -48,7 +48,7 @@ bot.use(blockDetection, auth)
 
 bot.use(stage)
 
-bot.catch(console.error)
+bot.catch((err) => log.error(`Handle update error: ${err}`))
 
 bot.on(
   'callback_query',
