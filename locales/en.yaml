@@ -52,16 +52,12 @@ buttons:
   openAddress: Open Address
   nextPage: Next »
   prevPage: « Prev
-  notificationsOn: |
-    ON
-  notificationsOff: |
-    OFF
-  notifications: |
-    Notifications: ${state}
+  notificationsOn: ON
+  notificationsOff: OFF
+  notifications: "Notifications: ${state}"
   editTag: Edit Tag
   setTag: Set Tag
-  shareAddress: |
-    Share Address
+  shareAddress: Share Address
   deleteAddress: Delete Address
   undo: Undo
   backToAddress: « Back to Address
