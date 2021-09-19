@@ -1,4 +1,4 @@
-const { Telegraf, Composer, session, Stage } = require('telegraf')
+const { Telegraf, Composer, Stage } = require('telegraf')
 
 const i18n = require('./i18n')
 
@@ -18,8 +18,11 @@ const deleteAddress = require('./handlers/deleteAddress')
 const undoAddressDelete = require('./handlers/undoAddressDelete')
 const editUndoKeyboard = require('./handlers/editUndoKeyboard')
 
+const session = require('./middlewares/session')
 const blockDetection = require('./middlewares/blockDetection')
 const auth = require('./middlewares/auth')
+
+const bot = new Telegraf(config.get('bot.token'))
 
 const payloadRegex = /^(\w|-){48}/
 
@@ -39,9 +42,7 @@ stage.hears(/^(\w|-){48}:.+/, Composer.tap(addAddress), Stage.leave())
 
 stage.command('list', Composer.tap(sendAddressesList), Stage.leave())
 
-const bot = new Telegraf(config.get('bot.token'))
-
-bot.use(session(), i18n)
+bot.use(session, i18n)
 
 bot.use(blockDetection, auth)
 
