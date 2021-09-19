@@ -30,11 +30,11 @@ module.exports = async (job) => {
     const from =
       address === transaction.from
         ? { address, tag, user_id: userId }
-        : addresses.find((el) => el.address === transaction.from)
+        : addresses.find((el) => el.address === transaction.from && el.user_id === userId)
     const to =
       address === transaction.to
         ? { address, tag, user_id: userId }
-        : addresses.find((el) => el.address === transaction.to)
+        : addresses.find((el) => el.address === transaction.to && el.user_id === userId)
 
     const type = i18n.t(
       user.language,
