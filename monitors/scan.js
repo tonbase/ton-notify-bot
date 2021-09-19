@@ -1,6 +1,7 @@
 f = (...args) => console.log(...args)
 j = (obj) => f(JSON.stringify(obj, null, 2))
 
+const Big = require('big.js')
 const mongoose = require('mongoose')
 
 const config = require('../config')
@@ -23,7 +24,7 @@ const addTransactionToQueue = (transaction) => {
   transactionQueue.add({
     from: inMessage.source,
     to: inMessage.destination,
-    value: inMessage.value / 1000000000,
+    value: new Big(inMessage.value).div(1000000000),
     comment: comment && ton.utils.base64toString(comment),
   })
 }
