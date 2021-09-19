@@ -38,7 +38,7 @@ stage.start(
 
 stage.start(Composer.tap(sendWelcome), Stage.leave())
 
-stage.hears(/^(\w|-){48}:.+/, Composer.tap(addAddress), Stage.leave())
+stage.hears(/(^(\w|-){48}(:.+)*$)/, Composer.tap(addAddress), Stage.leave())
 
 stage.command('list', Composer.tap(sendAddressesList), Stage.leave())
 
