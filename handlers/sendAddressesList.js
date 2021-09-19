@@ -17,6 +17,8 @@ module.exports = async (ctx) => {
 
   return ctx.replyWithHTML(
     ctx.i18n.t('list.chooseAddress'),
-    Extra.markup(getAddressesListKeyboard(addresses, paginationOptions, ctx.i18n)),
+    Extra.markup(getAddressesListKeyboard(addresses, paginationOptions, ctx.i18n)).webPreview(
+      false,
+    ),
   )
 }
