@@ -188,7 +188,7 @@ const scanAddresses = async () => {
       hash: ton.utils.bytesToHex(ton.utils.base64ToBytes(transaction.hash)),
       limit: 1,
     })
-    
+
     addTransactionToQueue(transactions[0])
   }
 
@@ -205,7 +205,7 @@ mongoose
           IS_RUNNING = false
           log.error(`Scan adresses error: ${err}`)
         }),
-      config.get('synchronizer.interval'),
+      config.get('synchronizer.interval') * 1000,
     ),
   )
   .catch((err) => log.error(`Monitor initialization error: ${err}`))
