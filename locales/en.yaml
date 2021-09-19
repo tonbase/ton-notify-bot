@@ -54,7 +54,7 @@ buttons:
   prevPage: « Prev
   notificationsOn: ON
   notificationsOff: OFF
-  notifications: "Notifications: ${state}"
+  notifications: 'Notifications: ${state}'
   editTag: Edit Tag
   setTag: Set Tag
   shareAddress: Share Address
