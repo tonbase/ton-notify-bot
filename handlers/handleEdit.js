@@ -7,18 +7,14 @@ module.exports = async (ctx) => {
   const [addressId] = ctx.match
 
   const addressRepository = new AddressRepository()
-  const {
-    _id,
-    address,
-    is_deleted: isDeleted,
-  } = await addressRepository.getOneById(addressId)
+  const { _id, address, is_deleted: isDeleted } = await addressRepository.getOneById(addressId)
 
   if (isDeleted) {
     return false
   }
 
   await ctx.editMessageText(
-    ctx.i18n.t('address.send-tag', { address, format_address: formatAddress }),
+    ctx.i18n.t('address.sendTag', { address, formatAddress }),
     Extra.HTML().markup(getBackToAddressKeyboard(_id, ctx.i18n)),
   )
 

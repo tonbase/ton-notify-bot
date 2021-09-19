@@ -7,7 +7,7 @@ welcome: |
 
 transaction:
   message: |
-    🏷 ${type} 👤 <a href="https://ton.sh/address/${from}">${from_tag}</a> ⟶ <a href="https://ton.sh/address/${to}">${to_tag}</a>
+    🏷 ${type} 👤 <a href="https://ton.sh/address/${from}">${fromTag}</a> ⟶ <a href="https://ton.sh/address/${to}">${toTag}</a>
 
     💎 ${value} TON
 
@@ -18,28 +18,28 @@ transaction:
 
 address:
   added: |
-    <a href="https://ton.sh/address/${address}">${format_address(address)}</a>${format_tag(tag)} has been added.
+    <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} has been added.
 
     You'll be notified about all events for the address.
   chosen: |
-    Here it is:${tag} <a href="https://ton.sh/address/${address}">${format_address(address)}</a>.
+    Here it is:${tag} <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>.
 
     What do you want to do with the address?
-  send-tag: |
-    Send me a tag for this address: <a href="https://ton.sh/address/${address}">${format_address(address)}</a>
+  sendTag: |
+    Send me a tag for this address: <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>
 
     For example: <i>My Address</i> and etc.
-  tag-edited: |
+  tagEdited: |
     Tag for <a href="https://ton.sh/address/${address}">this address</a> has been saved.
   deleted: |
-    This address <a href="https://ton.sh/address/${address}">${format_address(address)}</a>${format_tag(tag)} has been deleted.
+    This address <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} has been deleted.
   share: |
     t.me/${username}?start=${address}
 
     Tap on the link above to receive instant notifications about all events of this address 👆
 
 list:
-  choose-address: |
+  chooseAddress: |
     Choose an address from the list below:
   empty: |
     😔 You have no added addresses.
@@ -49,21 +49,21 @@ list:
     Also, you can send me <code>address:tag</code> to add an address with the tag.
 
 buttons:
-  open-address: Open Address
-  next-page: Next »
-  prev-page: « Prev
-  notifications-on: |
+  openAddress: Open Address
+  nextPage: Next »
+  prevPage: « Prev
+  notificationsOn: |
     ON
-  notifications-off: |
+  notificationsOff: |
     OFF
   notifications: |
     Notifications: ${state}
-  edit-tag: Edit Tag
-  set-tag: Set Tag
-  share-address: |
+  editTag: Edit Tag
+  setTag: Set Tag
+  shareAddress: |
     Share Address
-  delete-address: Delete Address
+  deleteAddress: Delete Address
   undo: Undo
-  back-to-address: « Back to Address
-  back-to-list: « Back to Addresses list
-  open-addresses-lit: Open Adresses List
+  backToAddress: « Back to Address
+  backToList: « Back to Addresses list
+  openAddressesList: Open Adresses List

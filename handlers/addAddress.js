@@ -7,9 +7,7 @@ const formatAddress = require('../utils/formatAddress')
 const formatTag = require('../utils/formatTag')
 
 module.exports = async (ctx) => {
-  const [address = ctx.startPayload, tag] = ctx.match
-    ? ctx.match[0].split(':')
-    : []
+  const [address = ctx.startPayload, tag] = ctx.match ? ctx.match[0].split(':') : []
 
   try {
     await ton.provider.send('getAddressInformation', { address })
@@ -23,8 +21,8 @@ module.exports = async (ctx) => {
   const addressAddedText = ctx.i18n.t('address.added', {
     address,
     tag,
-    format_address: formatAddress,
-    format_tag: formatTag,
+    formatAddress,
+    formatTag,
   })
 
   try {
@@ -36,9 +34,7 @@ module.exports = async (ctx) => {
 
     return ctx.replyWithHTML(
       addressAddedText,
-      Extra.markup(getOpenAddressKeyboard(_id, !!tag, ctx.i18n)).webPreview(
-        false,
-      ),
+      Extra.markup(getOpenAddressKeyboard(_id, !!tag, ctx.i18n)).webPreview(false),
     )
   } catch (err) {
     if (err.code !== 11000) {
@@ -60,25 +56,17 @@ module.exports = async (ctx) => {
 
       return ctx.replyWithHTML(
         addressAddedText,
-        Extra.markup(getOpenAddressKeyboard(_id, !!tag, ctx.i18n)).webPreview(
-          false,
-        ),
+        Extra.markup(getOpenAddressKeyboard(_id, !!tag, ctx.i18n)).webPreview(false),
       )
     }
 
     return ctx.replyWithHTML(
       ctx.i18n.t('address.chosen', {
         address,
-        format_address: formatAddress,
+        formatAddress,
         tag: oldTag ? ` ${oldTag}` : '',
       }),
-      Extra.markup(
-        getAddressMenuKeyboard(
-          { _id, notifications, address },
-          ctx.me,
-          ctx.i18n,
-        ),
-      ),
+      Extra.markup(getAddressMenuKeyboard({ _id, notifications, address }, ctx.me, ctx.i18n)),
     )
   }
 }

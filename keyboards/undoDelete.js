@@ -5,7 +5,7 @@ module.exports = (addressId, isHideOpenButton, i18n) => {
     [
       m.callbackButton(i18n.t('buttons.undo'), `undo_${addressId}`),
       m.callbackButton(
-        i18n.t('buttons.open-addresses-lit'),
+        i18n.t('buttons.openAddressesList'),
         `open-list_${addressId}`,
         isHideOpenButton,
       ),

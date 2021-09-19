@@ -12,7 +12,7 @@ module.exports = async (ctx) => {
   await ctx.editMessageText(
     ctx.i18n.t('address.chosen', {
       address: address.address,
-      format_address: formatAddress,
+      formatAddress,
       tag: address.tag ? ` ${address.tag}` : '',
     }),
     Extra.HTML().markup(getAddressMenuKeyboard(address, ctx.me, ctx.i18n)),

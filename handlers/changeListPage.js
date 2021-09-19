@@ -19,9 +19,7 @@ module.exports = async (ctx) => {
   }
 
   return ctx.editMessageText(
-    ctx.i18n.t('list.choose-address'),
-    Extra.markup(
-      getAddressesListKeyboard(addresses, paginationOptions, ctx.i18n),
-    ),
+    ctx.i18n.t('list.chooseAddress'),
+    Extra.markup(getAddressesListKeyboard(addresses, paginationOptions, ctx.i18n)),
   )
 }

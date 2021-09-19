@@ -9,19 +9,15 @@ module.exports = async (ctx) => {
 
   const addressRepository = new AddressRepository()
   await addressRepository.updateTag(addressId, tag)
-  const { _id, notifications, address } = await addressRepository.getOneById(
-    addressId,
-  )
+  const { _id, notifications, address } = await addressRepository.getOneById(addressId)
 
-  await ctx.replyWithHTML(ctx.i18n.t('address.tag-edited', { address }))
+  await ctx.replyWithHTML(ctx.i18n.t('address.tagEdited', { address }))
   await ctx.replyWithHTML(
     ctx.i18n.t('address.chosen', {
       address,
-      format_address: formatAddress,
+      formatAddress,
       tag: ` ${tag}`,
     }),
-    Extra.markup(
-      getAddressMenuKeyboard({ _id, notifications, address }, ctx.me, ctx.i18n),
-    ),
+    Extra.markup(getAddressMenuKeyboard({ _id, notifications, address }, ctx.me, ctx.i18n)),
   )
 }

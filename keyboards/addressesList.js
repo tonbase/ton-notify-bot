@@ -3,9 +3,7 @@ const formatAddress = require('../utils/formatAddress')
 
 module.exports = (addresses, pagination, i18n) => {
   const buttons = addresses.map(({ _id, address, tag }) => {
-    const text = tag
-      ? `${tag}: ${formatAddress(address)}`
-      : formatAddress(address)
+    const text = tag ? `${tag}: ${formatAddress(address)}` : formatAddress(address)
     return [m.callbackButton(text, `open_${_id}`)]
   })
 
@@ -13,19 +11,13 @@ module.exports = (addresses, pagination, i18n) => {
 
   if (!pagination.is_first_page) {
     navigationButtons.push(
-      m.callbackButton(
-        i18n.t('buttons.prev-page'),
-        `list_${pagination.prev_offset}`,
-      ),
+      m.callbackButton(i18n.t('buttons.prevPage'), `list_${pagination.prev_offset}`),
     )
   }
 
   if (!pagination.is_last_page) {
     navigationButtons.push(
-      m.callbackButton(
-        i18n.t('buttons.next-page'),
-        `list_${pagination.next_offset}`,
-      ),
+      m.callbackButton(i18n.t('buttons.nextPage'), `list_${pagination.next_offset}`),
     )
   }
 

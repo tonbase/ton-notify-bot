@@ -39,8 +39,8 @@ module.exports = async (job) => {
         type,
         from: transaction.from,
         to: transaction.to,
-        from_tag: fromTag,
-        to_tag: toTag,
+        fromTag,
+        toTag,
         value: transaction.value,
         comment: transaction.comment
           ? i18n.t(user.language, 'transaction.comment', { text: transaction.comment })
