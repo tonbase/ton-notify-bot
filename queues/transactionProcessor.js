@@ -17,6 +17,7 @@ module.exports = async (job) => {
   const transaction = job.data
   const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
     is_deleted: false,
+    notifications: true,
   })
 
   for (const { address, tag, user_id: userId } of addresses) {
