@@ -10,6 +10,7 @@ const CountersModel = require('../models/counters')
 const formatAddress = require('../utils/formatAddress')
 const formatBigNumberStr = require('../utils/formatBigNumberStr')
 const formatBalance = require('../utils/formatBalance')
+const knownAccounts = require('../data/addresses.json')
 
 const timeout = promisify(setTimeout)
 
@@ -38,6 +39,9 @@ module.exports = async (job) => {
   const formattedToBalance = toBalance ? formatBalance(ton.utils.fromNano(toBalance)) : ''
   const formattedTransactionValue = formatBigNumberStr(transaction.value)
 
+  const fromDefaultTag = knownAccounts[transaction.from] || formatAddress(transaction.from)
+  const toDefaultTag = knownAccounts[transaction.to] || formatAddress(transaction.to)
+
   for (const { _id, address, tag, user_id: userId } of addresses) {
     const user = await userRepository.getByTgId(userId)
 
@@ -58,8 +62,9 @@ module.exports = async (job) => {
       user.language,
       address === transaction.from ? 'transaction.send' : 'transaction.receive',
     )
-    const fromTag = from && from.tag ? from.tag : formatAddress(transaction.from)
-    const toTag = to && to.tag ? to.tag : formatAddress(transaction.to)
+
+    const fromTag = from && from.tag ? from.tag : fromDefaultTag
+    const toTag = to && to.tag ? to.tag : toDefaultTag
 
     await telegram.sendMessage(
       userId,
@@ -102,6 +107,8 @@ module.exports = async (job) => {
       i18n.t('en', 'transaction.channelMessage', {
         from: transaction.from,
         to: transaction.to,
+        fromTag: fromDefaultTag,
+        toTag: toDefaultTag,
         fromBalance:
           formattedFromBalance &&
           i18n.t('en', 'transaction.accountBalance', { value: formattedFromBalance }),
@@ -112,7 +119,6 @@ module.exports = async (job) => {
         comment: transaction.comment
           ? i18n.t('en', 'transaction.comment', { text: transaction.comment })
           : '',
-        formatAddress,
       }),
       Extra.HTML().webPreview(false),
     )
