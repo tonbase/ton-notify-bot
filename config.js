@@ -28,6 +28,12 @@ const config = convict({
       default: '',
       env: 'BOT_TOKEN',
     },
+    notifications_channel: {
+      doc: 'Notifications channel ID.',
+      format: String,
+      default: '',
+      env: 'NOTIFICATIONS_CHANNEL',
+    },
   },
   ton: {
     provider: {
