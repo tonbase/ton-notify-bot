@@ -7,6 +7,9 @@ const addressSchema = new mongoose.Schema(
     tag: { type: String, default: '' },
     is_deleted: { type: Boolean, default: false },
     notifications: { type: Boolean, default: true },
+    counters: {
+      send_coins: { type: Number, default: 0 },
+    },
   },
   {
     versionKey: false,

@@ -4,6 +4,7 @@ const config = require('../config')
 const i18n = require('../i18n')
 const AddressRepository = require('../repositories/address')
 const UserRepository = require('../repositories/user')
+const CountersModel = require('../models/counters')
 const formatAddress = require('../utils/formatAddress')
 
 const timeout = promisify(setTimeout)
@@ -20,7 +21,9 @@ module.exports = async (job) => {
     notifications: true,
   })
 
-  for (const { address, tag, user_id: userId } of addresses) {
+  let sendNotifications = 0
+
+  for (const { _id, address, tag, user_id: userId } of addresses) {
     const user = await userRepository.getByTgId(userId)
 
     if (user.is_blocked || user.is_deactivated) {
@@ -59,8 +62,18 @@ module.exports = async (job) => {
       Extra.HTML().webPreview(false),
     )
 
+    sendNotifications++
+
+    await addressRepository.incSendCoinsCounter(_id, 1)
+
     await timeout(200)
   }
+
+  await CountersModel.updateOne(
+    {},
+    { $inc: { send_notifications: sendNotifications } },
+    { upsert: true },
+  )
 
   return true
 }

@@ -23,10 +23,7 @@ class AddressRepository {
             { $skip: offset },
             { $limit: limit },
           ],
-          total_count: [
-            { $match: { user_id: userId, ...filter } },
-            { $count: 'count' },
-          ],
+          total_count: [{ $match: { user_id: userId, ...filter } }, { $count: 'count' }],
         },
       },
     ])
@@ -47,32 +44,24 @@ class AddressRepository {
     return AddressModel.updateOne({ _id: addressId }, { $set: { tag } })
   }
 
+  incSendCoinsCounter(addressId, value) {
+    return AddressModel.updateOne({ _id: addressId }, { $inc: { 'counters.send_coins': value } })
+  }
+
   turnOnNotifications(addressId) {
-    return AddressModel.updateOne(
-      { _id: addressId },
-      { $set: { notifications: true } },
-    )
+    return AddressModel.updateOne({ _id: addressId }, { $set: { notifications: true } })
   }
 
   turnOfNotifications(addressId) {
-    return AddressModel.updateOne(
-      { _id: addressId },
-      { $set: { notifications: false } },
-    )
+    return AddressModel.updateOne({ _id: addressId }, { $set: { notifications: false } })
   }
 
   softDeleteOne(addressId) {
-    return AddressModel.updateOne(
-      { _id: addressId },
-      { $set: { is_deleted: true } },
-    )
+    return AddressModel.updateOne({ _id: addressId }, { $set: { is_deleted: true } })
   }
 
   restoreOne(addressId) {
-    return AddressModel.updateOne(
-      { _id: addressId },
-      { $set: { is_deleted: false } },
-    )
+    return AddressModel.updateOne({ _id: addressId }, { $set: { is_deleted: false } })
   }
 }
 
