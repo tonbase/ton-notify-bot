@@ -12,7 +12,7 @@ module.exports = async (ctx) => {
   const { _id, notifications, address } = await addressRepository.getOneById(addressId)
 
   await ctx.replyWithHTML(ctx.i18n.t('address.tagEdited', { address }))
-  await ctx.replyWithHTML(
+  return ctx.replyWithHTML(
     ctx.i18n.t('address.chosen', {
       address,
       formatAddress,
