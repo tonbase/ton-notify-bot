@@ -19,7 +19,7 @@ transaction:
 
     ${comment}
   comment: 💬 ${text}
-  accountBalance:  · ${value} 💎
+  accountBalance:  · ${value}
   receive: Receive
   send: Send
 
