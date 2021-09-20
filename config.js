@@ -28,12 +28,18 @@ const config = convict({
       default: '',
       env: 'BOT_TOKEN',
     },
-    notifications_channel: {
+    notifications_channel_id: {
       doc: 'Notifications channel ID.',
       format: String,
       default: '',
-      env: 'NOTIFICATIONS_CHANNEL',
+      env: 'NOTIFICATIONS_CHANNEL_ID',
     },
+  },
+  min_transaction_amount: {
+    doc: 'Minimum amount of a transaction to send a notification to the channel',
+    format: Number,
+    default: 1000,
+    env: 'MIN_TRANSACTION_AMOUNT',
   },
   ton: {
     provider: {
