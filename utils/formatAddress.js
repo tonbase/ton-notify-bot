@@ -1,1 +1,1 @@
-module.exports = (address) => `${address.slice(0, 7)}…${address.slice(-5)}`
+module.exports = (address) => `${address.slice(0, 5)}…${address.slice(-5)}`

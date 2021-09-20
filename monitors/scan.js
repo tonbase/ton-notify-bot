@@ -24,7 +24,7 @@ const addTransactionToQueue = (transaction) => {
   transactionQueue.add({
     from: inMessage.source,
     to: inMessage.destination,
-    value: new Big(inMessage.value).div(1000000000),
+    value: ton.utils.fromNano(inMessage.value),
     comment: comment && ton.utils.base64toString(comment),
   })
 }

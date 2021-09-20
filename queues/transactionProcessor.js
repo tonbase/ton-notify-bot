@@ -33,9 +33,9 @@ module.exports = async (job) => {
   const toBalance = await ton.provider.getBalance(transaction.to).catch(() => {})
 
   const formattedFromBalance = fromBalance
-    ? formatBalance(new Big(fromBalance).div(1000000000))
+    ? formatBalance(ton.utils.fromNano(fromBalance))
     : ''
-  const formattedToBalance = toBalance ? formatBalance(new Big(toBalance).div(1000000000)) : ''
+  const formattedToBalance = toBalance ? formatBalance(ton.utils.fromNano(toBalance)) : ''
   const formattedTransactionValue = formatBigNumberStr(transaction.value)
 
   for (const { _id, address, tag, user_id: userId } of addresses) {
