@@ -7,13 +7,13 @@ welcome: |
 
 transaction:
   message: |
-    🏷 ${type} 👤 <a href="https://ton.sh/address/${from}">${fromTag}</a>${fromBalance} ⟶ <a href="https://ton.sh/address/${to}">${toTag}</a>${toBalance}
+    🏷 ${type} 👤 <a href="https://ton.sh/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://ton.sh/address/${to}">${toTag}</a>${toBalance}
 
     💎 ${value} TON
 
     ${comment}
   channelMessage: |
-    💸 <a href="https://ton.sh/address/${from}">${formatAddress(from)}</a>${fromBalance} ⟶ <a href="https://ton.sh/address/${to}">${formatAddress(to)}</a>${toBalance}
+    💸 <a href="https://ton.sh/address/${from}">${formatAddress(from)}</a>${fromBalance} ➜ <a href="https://ton.sh/address/${to}">${formatAddress(to)}</a>${toBalance}
 
     💎 ${value} TON
 
