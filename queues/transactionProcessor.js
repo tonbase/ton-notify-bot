@@ -10,6 +10,7 @@ const CountersModel = require('../models/counters')
 const formatAddress = require('../utils/formatAddress')
 const formatTransactionValue = require('../utils/formatTransactionValue')
 const formatBalance = require('../utils/formatBalance')
+const escapeHTML = require('../utils/escapeHTML')
 const knownAccounts = require('../data/addresses.json')
 
 const timeout = promisify(setTimeout)
@@ -39,6 +40,8 @@ module.exports = async (job) => {
 
   const fromDefaultTag = knownAccounts[transaction.from] || formatAddress(transaction.from)
   const toDefaultTag = knownAccounts[transaction.to] || formatAddress(transaction.to)
+
+  const comment = transaction.comment ? escapeHTML(transaction.comment) : ''
 
   for (const { _id, address, tag, user_id: userId } of addresses) {
     const user = await userRepository.getByTgId(userId)
@@ -79,9 +82,7 @@ module.exports = async (job) => {
           formattedToBalance &&
           i18n.t(user.language, 'transaction.accountBalance', { value: formattedToBalance }),
         value: formattedTransactionValue,
-        comment: transaction.comment
-          ? i18n.t(user.language, 'transaction.comment', { text: transaction.comment })
-          : '',
+        comment: comment && i18n.t(user.language, 'transaction.comment', { text: comment }),
       }),
       Extra.HTML().webPreview(false),
     )
@@ -114,9 +115,7 @@ module.exports = async (job) => {
           formattedToBalance &&
           i18n.t('en', 'transaction.accountBalance', { value: formattedToBalance }),
         value: formattedTransactionValue,
-        comment: transaction.comment
-          ? i18n.t('en', 'transaction.comment', { text: transaction.comment })
-          : '',
+        comment: comment && i18n.t('en', 'transaction.comment', { text: comment }),
       }),
       Extra.HTML().webPreview(false),
     )
