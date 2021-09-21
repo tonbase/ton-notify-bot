@@ -2,6 +2,7 @@ const { Telegram, Extra } = require('telegraf')
 const Big = require('big.js')
 const { promisify } = require('util')
 const config = require('../config')
+const log = require('../utils/log')
 const i18n = require('../i18n')
 const ton = require('../services/ton')
 const AddressRepository = require('../repositories/address')
@@ -44,53 +45,56 @@ module.exports = async (job) => {
   const comment = transaction.comment ? escapeHTML(transaction.comment) : ''
 
   for (const { _id, address, tag, user_id: userId } of addresses) {
-    const user = await userRepository.getByTgId(userId)
+    try {
+      const user = await userRepository.getByTgId(userId)
 
-    if (user.is_blocked || user.is_deactivated) {
-      continue
+      if (user.is_blocked || user.is_deactivated) {
+        continue
+      }
+
+      const from =
+        address === transaction.from
+          ? { address, tag, user_id: userId }
+          : addresses.find((el) => el.address === transaction.from && el.user_id === userId)
+      const to =
+        address === transaction.to
+          ? { address, tag, user_id: userId }
+          : addresses.find((el) => el.address === transaction.to && el.user_id === userId)
+
+      const type = i18n.t(
+        user.language,
+        address === transaction.from ? 'transaction.send' : 'transaction.receive',
+      )
+
+      const fromTag = from && from.tag ? from.tag : fromDefaultTag
+      const toTag = to && to.tag ? to.tag : toDefaultTag
+
+      await telegram.sendMessage(
+        userId,
+        i18n.t(user.language, 'transaction.message', {
+          type,
+          from: transaction.from,
+          to: transaction.to,
+          fromTag,
+          toTag,
+          fromBalance:
+            formattedFromBalance &&
+            i18n.t(user.language, 'transaction.accountBalance', { value: formattedFromBalance }),
+          toBalance:
+            formattedToBalance &&
+            i18n.t(user.language, 'transaction.accountBalance', { value: formattedToBalance }),
+          value: formattedTransactionValue,
+          comment: comment && i18n.t(user.language, 'transaction.comment', { text: comment }),
+        }),
+        Extra.HTML().webPreview(false),
+      )
+
+      sendNotifications++
+
+      await addressRepository.incSendCoinsCounter(_id, 1)
+    } catch (err) {
+      log.error(`Transaction notification sending error: ${err}`)
     }
-
-    const from =
-      address === transaction.from
-        ? { address, tag, user_id: userId }
-        : addresses.find((el) => el.address === transaction.from && el.user_id === userId)
-    const to =
-      address === transaction.to
-        ? { address, tag, user_id: userId }
-        : addresses.find((el) => el.address === transaction.to && el.user_id === userId)
-
-    const type = i18n.t(
-      user.language,
-      address === transaction.from ? 'transaction.send' : 'transaction.receive',
-    )
-
-    const fromTag = from && from.tag ? from.tag : fromDefaultTag
-    const toTag = to && to.tag ? to.tag : toDefaultTag
-
-    await telegram.sendMessage(
-      userId,
-      i18n.t(user.language, 'transaction.message', {
-        type,
-        from: transaction.from,
-        to: transaction.to,
-        fromTag,
-        toTag,
-        fromBalance:
-          formattedFromBalance &&
-          i18n.t(user.language, 'transaction.accountBalance', { value: formattedFromBalance }),
-        toBalance:
-          formattedToBalance &&
-          i18n.t(user.language, 'transaction.accountBalance', { value: formattedToBalance }),
-        value: formattedTransactionValue,
-        comment: comment && i18n.t(user.language, 'transaction.comment', { text: comment }),
-      }),
-      Extra.HTML().webPreview(false),
-    )
-
-    sendNotifications++
-
-    await addressRepository.incSendCoinsCounter(_id, 1)
-
     await timeout(200)
   }
 
