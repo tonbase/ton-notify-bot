@@ -8,7 +8,7 @@ const AddressRepository = require('../repositories/address')
 const UserRepository = require('../repositories/user')
 const CountersModel = require('../models/counters')
 const formatAddress = require('../utils/formatAddress')
-const formatBigNumberStr = require('../utils/formatBigNumberStr')
+const formatTransactionValue = require('../utils/formatTransactionValue')
 const formatBalance = require('../utils/formatBalance')
 const knownAccounts = require('../data/addresses.json')
 
@@ -33,11 +33,9 @@ module.exports = async (job) => {
   const fromBalance = await ton.provider.getBalance(transaction.from).catch(() => {})
   const toBalance = await ton.provider.getBalance(transaction.to).catch(() => {})
 
-  const formattedFromBalance = fromBalance
-    ? formatBalance(ton.utils.fromNano(fromBalance))
-    : ''
+  const formattedFromBalance = fromBalance ? formatBalance(ton.utils.fromNano(fromBalance)) : ''
   const formattedToBalance = toBalance ? formatBalance(ton.utils.fromNano(toBalance)) : ''
-  const formattedTransactionValue = formatBigNumberStr(transaction.value)
+  const formattedTransactionValue = formatTransactionValue(transaction.value)
 
   const fromDefaultTag = knownAccounts[transaction.from] || formatAddress(transaction.from)
   const toDefaultTag = knownAccounts[transaction.to] || formatAddress(transaction.to)
