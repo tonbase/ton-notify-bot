@@ -25,7 +25,7 @@ const addTransactionToQueue = (transaction) => {
     from: inMessage.source,
     to: inMessage.destination,
     value: ton.utils.fromNano(inMessage.value),
-    comment: comment && ton.utils.base64toString(comment),
+    comment: comment && new TextDecoder().decode(ton.utils.base64ToBytes(comment)),
   })
 }
 
