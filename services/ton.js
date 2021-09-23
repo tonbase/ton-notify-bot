@@ -16,5 +16,5 @@ class TON {
     return address.toString(true, true, bounceable, false)
   }
 }
-f(config.get('ton.provider'))
+
 module.exports = new TON(config.get('ton.provider'))

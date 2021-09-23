@@ -20,12 +20,14 @@ const addTransactionToQueue = (transaction) => {
     return false
   }
   const comment = inMessage?.msg_data?.text
+  const isDataText = inMessage?.msg_data?.['@type'] === 'msg.dataText'
 
   transactionQueue.add({
     from: inMessage.source,
     to: inMessage.destination,
     value: ton.utils.fromNano(inMessage.value),
-    comment: comment && new TextDecoder().decode(ton.utils.base64ToBytes(comment)),
+    comment:
+      comment && isDataText ? new TextDecoder().decode(ton.utils.base64ToBytes(comment)) : '',
   })
 }
 
