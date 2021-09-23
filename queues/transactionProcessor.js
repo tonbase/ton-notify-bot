@@ -35,8 +35,10 @@ module.exports = async (job) => {
   const fromBalance = await ton.provider.getBalance(transaction.from).catch(() => {})
   const toBalance = await ton.provider.getBalance(transaction.to).catch(() => {})
 
-  const formattedFromBalance = fromBalance ? formatBalance(ton.utils.fromNano(fromBalance)) : ''
-  const formattedToBalance = toBalance ? formatBalance(ton.utils.fromNano(toBalance)) : ''
+  const formattedFromBalance =
+    fromBalance || fromBalance === 0 ? formatBalance(ton.utils.fromNano(fromBalance)) : ''
+  const formattedToBalance =
+    toBalance || toBalance === 0 ? formatBalance(ton.utils.fromNano(toBalance)) : ''
   const formattedTransactionValue = formatTransactionValue(transaction.value)
 
   const fromDefaultTag = knownAccounts[transaction.from] || formatAddress(transaction.from)
