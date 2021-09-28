@@ -9,17 +9,18 @@ transaction:
   message: |
     🏷 ${type} 👤 <a href="https://ton.sh/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://ton.sh/address/${to}">${toTag}</a>${toBalance}
 
-    💎 ${value} TON
+    💎 ${value} TON${price}
 
     ${comment}
   channelMessage: |
     💸 <a href="https://ton.sh/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://ton.sh/address/${to}">${toTag}</a>${toBalance}
 
-    💎 ${value} TON
+    💎 ${value} TON${price}
 
     ${comment}
   comment: 💬 ${text}
   accountBalance: " · ${value}"
+  price: " · $${value}"
   receive: Receive
   send: Send
 
@@ -61,7 +62,7 @@ buttons:
   prevPage: « Prev
   notificationsOn: ON
   notificationsOff: OFF
-  notifications: 'Notifications: ${state}'
+  notifications: "Notifications: ${state}"
   editTag: Edit Tag
   setTag: Set Tag
   shareAddress: Share Address

@@ -5,12 +5,14 @@ const config = require('../config')
 const log = require('../utils/log')
 const i18n = require('../i18n')
 const ton = require('../services/ton')
+const getPrice = require('../monitors/scanPrice')
 const AddressRepository = require('../repositories/address')
 const UserRepository = require('../repositories/user')
 const CountersModel = require('../models/counters')
 const formatAddress = require('../utils/formatAddress')
 const formatTransactionValue = require('../utils/formatTransactionValue')
 const formatBalance = require('../utils/formatBalance')
+const formatTransactionPrice = require('../utils/formatTransactionPrice')
 const escapeHTML = require('../utils/escapeHTML')
 const knownAccounts = require('../data/addresses.json')
 
@@ -45,6 +47,10 @@ module.exports = async (job) => {
   const toDefaultTag = knownAccounts[transaction.to] || formatAddress(transaction.to)
 
   const comment = transaction.comment ? escapeHTML(transaction.comment) : ''
+
+  const transactionPrice = getPrice()
+    ? formatTransactionPrice(new Big(transaction.value).mul(getPrice()))
+    : ''
 
   for (const { _id, address, tag, user_id: userId } of addresses) {
     try {
@@ -86,6 +92,9 @@ module.exports = async (job) => {
             formattedToBalance &&
             i18n.t(user.language, 'transaction.accountBalance', { value: formattedToBalance }),
           value: formattedTransactionValue,
+          price:
+            transactionPrice &&
+            i18n.t(user.language, 'transaction.price', { value: transactionPrice }),
           comment: comment && i18n.t(user.language, 'transaction.comment', { text: comment }),
         }),
         Extra.HTML().webPreview(false),
@@ -121,6 +130,7 @@ module.exports = async (job) => {
           formattedToBalance &&
           i18n.t('en', 'transaction.accountBalance', { value: formattedToBalance }),
         value: formattedTransactionValue,
+        price: transactionPrice && i18n.t('en', 'transaction.price', { value: transactionPrice }),
         comment: comment && i18n.t('en', 'transaction.comment', { text: comment }),
       }),
       Extra.HTML().webPreview(false),

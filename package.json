@@ -20,6 +20,7 @@
     "big.js": "^6.1.1",
     "bull": "^3.29.2",
     "chalk": "^4.1.2",
+    "coingecko-api": "^1.0.10",
     "convict": "^5.2.1",
     "dotenv": "^10.0.0",
     "mongoose": "^6.0.5",
