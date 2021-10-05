@@ -13,21 +13,24 @@ const transactionQueue = require('../queues/transaction')
 let IS_RUNNING = false
 
 const addTransactionToQueue = (transaction) => {
-  const { in_msg: inMessage } = transaction
-  const isInTransaction = inMessage.source && inMessage.destination && inMessage.value > 0
+  const inMsg = transaction?.in_msg
+  const outMsg = transaction?.out_msgs?.[0]
+  const message = inMsg?.source && inMsg?.destination ? inMsg : outMsg
 
-  if (!isInTransaction) {
+  if (!message || !new Big(message?.value).gt(0)) {
     return false
   }
-  const comment = inMessage?.msg_data?.text
-  const isDataText = inMessage?.msg_data?.['@type'] === 'msg.dataText'
+
+  const comment = message?.msg_data?.text
+  const isDataText = message?.msg_data?.['@type'] === 'msg.dataText'
 
   transactionQueue.add({
-    from: inMessage.source,
-    to: inMessage.destination,
-    value: ton.utils.fromNano(inMessage.value),
-    comment:
-      comment && isDataText ? new TextDecoder().decode(ton.utils.base64ToBytes(comment)) : '',
+    from: message.source,
+    to: message.destination,
+    value: ton.utils.fromNano(message.value),
+    comment: comment && isDataText
+      ? new TextDecoder().decode(ton.utils.base64ToBytes(comment))
+      : '',
   })
 }
 
