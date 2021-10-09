@@ -1,9 +1,9 @@
 welcome: |
-  I can send you instant notifications about all the events of the <a href="https://ton.org/">TON</a> Blockchain.
+  I send you instant notifications about any event of the <a href="https://ton.org/">TON</a> blockchain.
 
-  Send me an address or <code>address:tag</code> to add it.
+  Send me an address like <code>address:tag</code> to get notifications for it.
 
-  /list – manage your alerts
+  /list — manage your alerts
 
 transaction:
   message: |
@@ -26,11 +26,11 @@ transaction:
 
 address:
   added: |
-    <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} has been added.
+    <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} was added.
 
-    You'll be notified about all events for the address.
+    You'll get notified about all events of this address.
   chosen: |
-    Here it is:${tag} <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>.
+    Here it is: ${tag} <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>.
 
     What do you want to do with the address?
   sendTag: |
@@ -38,23 +38,23 @@ address:
 
     For example: <i>My Address</i> and etc.
   tagEdited: |
-    Tag for <a href="https://ton.sh/address/${address}">this address</a> has been saved.
+    The tag of <a href="https://ton.sh/address/${address}">this address</a> was saved.
   deleted: |
-    This address <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} has been deleted.
+    The address <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} was deleted.
   share: |
     t.me/${username}?start=${address}
 
-    Tap on the link above to receive instant notifications about all events of this address 👆
+    Use the above link to receive instant notifications for all events of this address 👆
 
 list:
   chooseAddress: |
     Choose an address from the list below:
   empty: |
-    😔 You have no added addresses.
+    😔 You have no addresses added.
 
-    Send me the <a href="https://ton.org/">TON</a> address to receive instant notifications about all events for the address.
+    Send me a <a href="https://ton.org/">TON</a> address to get instant notifications for its events.
 
-    Also, you can send me <code>address:tag</code> to add an address with the tag.
+    Also, you can send me <code>address:tag</code> to add it with the tag once.
 
 buttons:
   openAddress: Open Address
@@ -69,5 +69,5 @@ buttons:
   deleteAddress: Delete Address
   undo: Undo
   backToAddress: « Back to Address
-  backToList: « Back to Addresses list
-  openAddressesList: Open Adresses List
+  backToList: « Back to Address list
+  openAddressesList: Open Adress List
