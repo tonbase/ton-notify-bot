@@ -1,6 +1,9 @@
+const Big = require('big.js')
 const formatBigNumberStr = require('./formatBigNumberStr')
 
 module.exports = (str) => {
-  const formatted = formatBigNumberStr(str)
-  return formatted.includes('.') ? formatted : `${formatted}.00`
+  if (new Big(str).gte(10)) {
+    str = new Big(str).toFixed(0, 0)
+  }
+  return formatBigNumberStr(str)
 }
