@@ -2124,10 +2124,10 @@ text-table@^0.2.0:
   resolved "https://registry.yarnpkg.com/text-table/-/text-table-0.2.0.tgz#7f5ee823ae805207c00af2df4a84ec3fcfa570b4"
   integrity sha1-f17oI66AUgfACvLfSoTsP8+lcLQ=
 
-tonweb@0.0.20:
-  version "0.0.20"
-  resolved "https://registry.yarnpkg.com/tonweb/-/tonweb-0.0.20.tgz#8cee857de8364568d7665775dec8725d5205cd5d"
-  integrity sha512-ZW5edmALgkjxp5yuR089gEYFt6HqxOV0TyxynFlDI1YJDPMniZKnwbDAWcn/uWx1H+BPl0XwsvOTSbLn7Sz5Sw==
+tonweb@0.0.26:
+  version "0.0.26"
+  resolved "https://registry.yarnpkg.com/tonweb/-/tonweb-0.0.26.tgz#b96808f419ba5ef4a78f00b943c3dfe8643bafe7"
+  integrity sha512-+uWkz8EB/vXT6MbW6h6tJdkj/rIW6vtBncuaGferzVHV93Lty0ljtr1x5+QmYcir0ue4YeX23uTEi8UsSIoqCw==
   dependencies:
     "@ledgerhq/hw-transport-web-ble" "^5.46.0"
     "@ledgerhq/hw-transport-webhid" "^5.46.0"
