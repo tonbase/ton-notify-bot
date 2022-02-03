@@ -5,15 +5,17 @@ welcome: |
 
   /list — manage your alerts
 
+  Powered by @tonbase.
+
 transaction:
   message: |
-    🏷 ${type} 👤 <a href="https://ton.sh/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://ton.sh/address/${to}">${toTag}</a>${toBalance}
+    🏷 ${type} 👤 <a href="https://tonscan.org/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonscan.org/address/${to}">${toTag}</a>${toBalance}
 
     💎 ${value} TON${price}
 
     ${comment}
   channelMessage: |
-    💸 <a href="https://ton.sh/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://ton.sh/address/${to}">${toTag}</a>${toBalance}
+    💸 <a href="https://tonscan.org/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonscan.org/address/${to}">${toTag}</a>${toBalance}
 
     💎 ${value} TON${price}
 
@@ -26,21 +28,21 @@ transaction:
 
 address:
   added: |
-    <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} was added.
+    <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} was added.
 
     You'll get notified about all events of this address.
   chosen: |
-    Here it is: ${tag} <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>.
+    Here it is: ${tag} <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>.
 
     What do you want to do with the address?
   sendTag: |
-    Send me a tag for this address: <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>
+    Send me a tag for this address: <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>
 
     For example: <i>My Address</i> and etc.
   tagEdited: |
-    The tag of <a href="https://ton.sh/address/${address}">this address</a> was saved.
+    The tag of <a href="https://tonscan.org/address/${address}">this address</a> was saved.
   deleted: |
-    The address <a href="https://ton.sh/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} was deleted.
+    The address <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} was deleted.
   share: |
     t.me/${username}?start=${address}
 
