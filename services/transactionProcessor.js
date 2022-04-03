@@ -104,7 +104,12 @@ module.exports = async (data) => {
 
       await addressRepository.incSendCoinsCounter(_id, 1)
     } catch (err) {
-      log.error(`Transaction notification sending error: ${err}`)
+      if (err.code === 403) {
+        log.error(`Transaction notification sending error: ${err}`)
+        addressRepository.updateOneById(_id, { notifications: false }).then(() => {
+          log.error(`Disable notification for ${address}`)
+        })
+      }
     }
     await timeout(200)
   }
