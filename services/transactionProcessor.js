@@ -4,7 +4,7 @@ const { promisify } = require('util')
 const config = require('../config')
 const log = require('../utils/log')
 const i18n = require('../i18n')
-const ton = require('../services/ton')
+const ton = require('./ton')
 const getPrice = require('../monitors/scanPrice')
 const AddressRepository = require('../repositories/address')
 const UserRepository = require('../repositories/user')
@@ -26,8 +26,8 @@ const userRepository = new UserRepository()
 const NOTIFICATIONS_CHANNEL_ID = config.get('bot.notifications_channel_id')
 const MIN_TRANSACTION_AMOUNT = config.get('min_transaction_amount')
 
-module.exports = async (job) => {
-  const transaction = job.data
+module.exports = async (data) => {
+  const transaction = data
   const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
     is_deleted: false,
     notifications: true,

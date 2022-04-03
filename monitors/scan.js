@@ -8,7 +8,7 @@ const config = require('../config')
 const ton = require('../services/ton')
 const log = require('../utils/log')
 const Block = require('../models/block')
-const transactionQueue = require('../queues/transaction')
+const transactionProcessor = require('../services/transactionProcessor')
 
 let IS_RUNNING = false
 
@@ -24,7 +24,7 @@ const addTransactionToQueue = (transaction) => {
   const comment = message?.msg_data?.text
   const isDataText = message?.msg_data?.['@type'] === 'msg.dataText'
 
-  transactionQueue.add({
+  return transactionProcessor({
     from: message.source,
     to: message.destination,
     value: ton.utils.fromNano(message.value),
