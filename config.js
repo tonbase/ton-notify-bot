@@ -1,4 +1,5 @@
-require('dotenv').config()
+require('dotenv')
+  .config({ path: __dirname + '/.env' })
 
 const convict = require('convict')
 
@@ -14,12 +15,6 @@ const config = convict({
     format: String,
     default: 'mongodb://localhost:27017/ton-notify',
     env: 'MONGODB_URI',
-  },
-  redis: {
-    doc: 'Redis connection url.',
-    format: String,
-    default: 'redis://127.0.0.1:6379',
-    env: 'REDIS_URI',
   },
   bot: {
     token: {
@@ -46,7 +41,13 @@ const config = convict({
       doc: 'TON API url.',
       format: String,
       default: 'https://testnet.toncenter.com/api/v2/jsonRPC',
-      env: 'TON_PROVIDER',
+      env: 'TON_PROVIDER_URL',
+    },
+    key: {
+      doc: 'TON Center API Key.',
+      format: String,
+      default: '',
+      env: 'TON_PROVIDER_KEY',
     },
   },
   synchronizer: {

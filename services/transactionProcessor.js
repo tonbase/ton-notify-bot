@@ -1,3 +1,4 @@
+const crypto = require('crypto')
 const { Telegram, Extra } = require('telegraf')
 const Big = require('big.js')
 const { promisify } = require('util')
@@ -25,6 +26,10 @@ const userRepository = new UserRepository()
 
 const NOTIFICATIONS_CHANNEL_ID = config.get('bot.notifications_channel_id')
 const MIN_TRANSACTION_AMOUNT = config.get('min_transaction_amount')
+
+const SENT_RAW_MESSAGES = []
+
+const encodeMd5 = (str) => crypto.createHash('md5').update(str).digest('hex')
 
 module.exports = async (data) => {
   const transaction = data
@@ -77,28 +82,36 @@ module.exports = async (data) => {
       const fromTag = from && from.tag ? from.tag : fromDefaultTag
       const toTag = to && to.tag ? to.tag : toDefaultTag
 
-      await telegram.sendMessage(
-        userId,
-        i18n.t(user.language, 'transaction.message', {
-          type,
-          from: transaction.from,
-          to: transaction.to,
-          fromTag,
-          toTag,
-          fromBalance:
-            formattedFromBalance &&
-            i18n.t(user.language, 'transaction.accountBalance', { value: formattedFromBalance }),
-          toBalance:
-            formattedToBalance &&
-            i18n.t(user.language, 'transaction.accountBalance', { value: formattedToBalance }),
-          value: formattedTransactionValue,
-          price:
-            transactionPrice &&
-            i18n.t(user.language, 'transaction.price', { value: transactionPrice }),
-          comment: comment && i18n.t(user.language, 'transaction.comment', { text: comment }),
-        }),
-        Extra.HTML().webPreview(false),
-      )
+      const rawMessageText = i18n.t(user.language, 'transaction.message', {
+        type,
+        from: transaction.from,
+        to: transaction.to,
+        fromTag,
+        toTag,
+        fromBalance:
+          formattedFromBalance &&
+          i18n.t(user.language, 'transaction.accountBalance', { value: formattedFromBalance }),
+        toBalance:
+          formattedToBalance &&
+          i18n.t(user.language, 'transaction.accountBalance', { value: formattedToBalance }),
+        value: formattedTransactionValue,
+        price:
+          transactionPrice &&
+          i18n.t(user.language, 'transaction.price', { value: transactionPrice }),
+        comment: comment && i18n.t(user.language, 'transaction.comment', { text: comment }),
+      })
+
+      if (SENT_RAW_MESSAGES.find(({id, hash}) => id === userId && hash === encodeMd5(rawMessageText))) {
+        continue
+      }
+
+      SENT_RAW_MESSAGES.push({
+        id: userId,
+        hash: encodeMd5(rawMessageText),
+        sentDate: new Date(),
+      })
+
+      await telegram.sendMessage(userId, rawMessageText, Extra.HTML().webPreview(false))
 
       sendNotifications++
 
@@ -121,28 +134,41 @@ module.exports = async (data) => {
   )
 
   if (new Big(transaction.value).gte(MIN_TRANSACTION_AMOUNT)) {
+    const rawMessageText = i18n.t('en', 'transaction.channelMessage', {
+      from: transaction.from,
+      to: transaction.to,
+      fromTag: fromDefaultTag,
+      toTag: toDefaultTag,
+      fromBalance:
+        formattedFromBalance &&
+        i18n.t('en', 'transaction.accountBalance', { value: formattedFromBalance }),
+      toBalance:
+        formattedToBalance &&
+        i18n.t('en', 'transaction.accountBalance', { value: formattedToBalance }),
+      value: formattedTransactionValue,
+      price: transactionPrice && i18n.t('en', 'transaction.price', { value: transactionPrice }),
+      comment: comment && i18n.t('en', 'transaction.comment', { text: comment }),
+    })
+    if (
+      SENT_RAW_MESSAGES
+      .find(({id, hash}) => id === +NOTIFICATIONS_CHANNEL_ID && hash === encodeMd5(rawMessageText))
+    ) {
+      log.info(`block send copy message to ${NOTIFICATIONS_CHANNEL_ID}: ${rawMessageText}`)
+      return false
+    }
+    SENT_RAW_MESSAGES.push({
+      id: +NOTIFICATIONS_CHANNEL_ID,
+      hash: encodeMd5(rawMessageText),
+      sentDate: new Date(),
+    })
     await telegram.sendMessage(
       NOTIFICATIONS_CHANNEL_ID,
-      i18n.t('en', 'transaction.channelMessage', {
-        from: transaction.from,
-        to: transaction.to,
-        fromTag: fromDefaultTag,
-        toTag: toDefaultTag,
-        fromBalance:
-          formattedFromBalance &&
-          i18n.t('en', 'transaction.accountBalance', { value: formattedFromBalance }),
-        toBalance:
-          formattedToBalance &&
-          i18n.t('en', 'transaction.accountBalance', { value: formattedToBalance }),
-        value: formattedTransactionValue,
-        price: transactionPrice && i18n.t('en', 'transaction.price', { value: transactionPrice }),
-        comment: comment && i18n.t('en', 'transaction.comment', { text: comment }),
-      }),
-      Extra.HTML().webPreview(false),
+      rawMessageText,
+      Extra.HTML().webPreview(false)
     )
   }
 
-  await timeout(200)
+  await timeout(500)
 
   return true
 }
