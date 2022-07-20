@@ -16,6 +16,7 @@ const formatBalance = require('../utils/formatBalance')
 const formatTransactionPrice = require('../utils/formatTransactionPrice')
 const escapeHTML = require('../utils/escapeHTML')
 const knownAccounts = require('../data/addresses.json')
+const excludedAddresses = require('../data/excludedAddresses.json')
 
 const timeout = promisify(setTimeout)
 
@@ -33,6 +34,11 @@ const encodeMd5 = (str) => crypto.createHash('md5').update(str).digest('hex')
 
 module.exports = async (data) => {
   const transaction = data
+
+  if (excludedAddresses.includes(transaction.from) || excludedAddresses.includes(transaction.to)) {
+    return false
+  }
+
   const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
     is_deleted: false,
     notifications: true,
