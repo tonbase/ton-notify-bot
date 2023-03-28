@@ -10,7 +10,7 @@ module.exports = async (ctx) => {
   const [address = ctx.startPayload, tag] = ctx.match ? ctx.match[0].split(':') : []
 
   try {
-    await ton.provider.send('getAddressInformation', { address })
+    await ton.node.send('getAddressInformation', { address })
   } catch (err) {
     return false
   }

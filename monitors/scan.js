@@ -45,42 +45,12 @@ const scanAddresses = async () => {
   const processedBlockIds = []
   const transactionsQueue = []
 
-  const masterchainInfo = await ton.provider.send('getMasterchainInfo', {})
-  const lastEnqueuedMaster = await Block.findOne({ type: 'master' }).sort({
-    seqno: 'desc',
-  })
-
-  if (!lastEnqueuedMaster) {
-    // initialize blocks db if there is no known master yet
-    await Block.create({
-      type: 'master',
-      seqno: masterchainInfo.last.seqno,
-    })
-    const { shards } = await ton.provider.send('shards', {
-      seqno: masterchainInfo.last.seqno,
-    })
-    for (const shard of shards) {
-      await Block.findOneAndUpdate(
-        {
-          type: 'shard',
-          workchain: shard.workchain,
-          shard: shard.shard,
-          seqno: shard.seqno,
-          root_hash: shard.root_hash,
-          file_hash: shard.file_hash,
-        },
-        {},
-        {
-          upsert: true,
-          new: true,
-          setDefaultsOnInsert: true,
-        },
-      )
-      log.info(`Enqueued shard block ${shard.shard}#${shard.seqno}`)
-    }
-    await Block.updateMany({}, { $set: { processed: true } })
-    IS_RUNNING = false
-    return
+  let lastSeqno //= lastEnqueuedMaster?.last_checked_block;
+  if (!lastEnqueuedMaster || !lastSeqno) {
+    log.info('Sending getMasterchainInfo request')
+    const masterchainInfo = await ton.node.send('getMasterchainInfo', {});
+    log.info(`Received last.seqno: ${masterchainInfo.last.seqno}`)
+    lastSeqno = masterchainInfo.last.seqno;
   }
 
   log.info(`Enqueue master blocks ${lastEnqueuedMaster.seqno}-${masterchainInfo.last.seqno}`)
