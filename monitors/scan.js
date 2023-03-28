@@ -42,32 +42,23 @@ const scanAddresses = async () => {
   IS_RUNNING = true
 
   const lastEnqueuedMaster = await Counters.findOne().sort({ updated_at: -1 });
-  log.info(`Received lastEnqueuedMaster from Counters: ${lastEnqueuedMaster}`);
+  const masterchainInfo = await ton.node.send('getMasterchainInfo', {});
+  log.info(`Enqueue master blocks ${lastEnqueuedMaster.last_checked_block}-${masterchainInfo.last.seqno}`);
 
-  let lastSeqno //= lastEnqueuedMaster?.last_checked_block;
-  if (!lastEnqueuedMaster || !lastSeqno) {
-    log.info('Sending getMasterchainInfo request')
-    const masterchainInfo = await ton.node.send('getMasterchainInfo', {});
-    log.info(`Received last.seqno: ${masterchainInfo.last.seqno}`)
-    lastSeqno = masterchainInfo.last.seqno;
-  }
+  const curSeqno = lastEnqueuedMaster.last_checked_block;
+  const lastSeqno = masterchainInfo.last.seqno;
+  for (let seqno = curSeqno; seqno < lastSeqno; seqno++) {
+    const transactionsList = await ton.getTransactionsByMasterchainSeqno(seqno);
+    log.info(`Received ${transactionsList.lenght} transactions on seqno: ${seqno}`);
 
-  log.info('Sending getTransactionsByMasterchainSeqno request')
+    for (const index in transactionsList) {
+      const transaction = transactionsList[index];
+      transaction.address = new ton.utils.Address(transaction.account).toString(true, true, true, false,)
 
-  const transactionsList = await ton.getTransactionsByMasterchainSeqno(lastSeqno);
-  log.info(`Received ${transactionsList.lenght} transactions`);
-
-  for (const index in transactionsList) {
-    const transaction = transactionsList[index];
-    // const transactions = await ton.provider.send('getTransactions', {
-    //   address: transaction.address,
-    //   lt: transaction.lt,
-    //   hash: ton.utils.bytesToHex(ton.utils.base64ToBytes(transaction.hash)),
-    //   limit: 1,
-    // })
-    log.info(`Adding transaction #${+index + 1} to queue`);
-    console.log(transaction)
-    addTransactionToQueue(transaction);
+      log.info(`Adding transaction #${+index + 1} to queue (${transaction.address})`);
+      // console.log(transaction)
+      addTransactionToQueue(transaction);
+    }
   }
 
   await Counters.updateOne({
