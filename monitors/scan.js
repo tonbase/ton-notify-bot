@@ -43,10 +43,19 @@ const scanAddresses = async () => {
 
   const lastEnqueuedMaster = await Counters.findOne().sort({ updated_at: -1 });
   const masterchainInfo = await ton.node.send('getMasterchainInfo', {});
-  log.info(`Enqueue master blocks ${lastEnqueuedMaster.last_checked_block}-${masterchainInfo.last.seqno}`);
-
-  const curSeqno = lastEnqueuedMaster.last_checked_block;
+  
+  const curSeqno = lastEnqueuedMaster?.last_checked_block;
   const lastSeqno = masterchainInfo.last.seqno;
+  if (!curSeqno || curSeqno == 0) {
+    await Counters.updateOne({
+      last_checked_block: lastSeqno
+    });
+    IS_RUNNING = false;
+    return false;
+  }
+  
+  log.info(`Enqueue master blocks ${curSeqno}-${lastSeqno}`);
+
   for (let seqno = curSeqno; seqno < lastSeqno; seqno++) {
     const transactionsList = await ton.getTransactionsByMasterchainSeqno(seqno);
     log.info(`Received ${transactionsList.lenght} transactions on seqno: ${seqno}`);
@@ -70,6 +79,11 @@ const scanAddresses = async () => {
 
 mongoose
   .connect(config.get('db'))
+  .then(async () => {
+    await Counters.updateOne({
+      last_checked_block: 0
+    });
+  })
   .then(() =>
     setInterval(
       () =>
