@@ -53,7 +53,7 @@ const config = convict({
       doc: 'TON Center API Key.',
       format: String,
       default: '',
-      env: 'TON_PROVIDER_KEY',
+      env: 'TON_API_KEY',
     },
   },
   synchronizer: {
