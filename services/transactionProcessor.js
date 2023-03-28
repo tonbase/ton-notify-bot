@@ -45,8 +45,8 @@ module.exports = async (data) => {
   })
 
   let sendNotifications = 0
-  const fromBalance = await ton.provider.getBalance(transaction.from).catch(() => {})
-  const toBalance = await ton.provider.getBalance(transaction.to).catch(() => {})
+  const fromBalance = await ton.node.getBalance(transaction.from).catch(() => { });
+  const toBalance = await ton.node.getBalance(transaction.to).catch(() => { });
 
   const formattedFromBalance =
     fromBalance || fromBalance === 0 ? formatBalance(ton.utils.fromNano(fromBalance)) : ''
@@ -107,7 +107,7 @@ module.exports = async (data) => {
         comment: comment && i18n.t(user.language, 'transaction.comment', { text: comment }),
       })
 
-      if (SENT_RAW_MESSAGES.find(({id, hash}) => id === userId && hash === encodeMd5(rawMessageText))) {
+      if (SENT_RAW_MESSAGES.find(({ id, hash }) => id === userId && hash === encodeMd5(rawMessageText))) {
         continue
       }
 
@@ -157,7 +157,7 @@ module.exports = async (data) => {
     })
     if (
       SENT_RAW_MESSAGES
-      .find(({id, hash}) => id === +NOTIFICATIONS_CHANNEL_ID && hash === encodeMd5(rawMessageText))
+        .find(({ id, hash }) => id === +NOTIFICATIONS_CHANNEL_ID && hash === encodeMd5(rawMessageText))
     ) {
       log.info(`block send copy message to ${NOTIFICATIONS_CHANNEL_ID}: ${rawMessageText}`)
       return false
