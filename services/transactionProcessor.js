@@ -153,7 +153,7 @@ module.exports = async (data) => {
     const encodedMessageText = encodeMd5(rawMessageText)
     if (
       SENT_RAW_MESSAGES
-        .find(({ id, hash }) => id === +NOTIFICATIONS_CHANNEL_ID && hash === encodedMessageText)
+        .find(({ id, hash }) => id === NOTIFICATIONS_CHANNEL_ID && hash === encodedMessageText)
     ) {
       log.info(`Block send copy message to ${NOTIFICATIONS_CHANNEL_ID}: ${rawMessageText}`)
       return false
