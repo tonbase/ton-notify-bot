@@ -2,16 +2,18 @@ const { Extra } = require('telegraf')
 const AddressRepository = require('../repositories/address')
 const pagination = require('../services/pagination')
 const getAddressesListKeyboard = require('../keyboards/addressesList')
+const { PAGINATION_LIMIT } = require('../constants')
 
 module.exports = async (ctx) => {
   const [offsetStr] = ctx.match
   const offset = Number(offsetStr) || 0
 
   const addressRepository = new AddressRepository()
+  // eslint-disable-next-line camelcase
   const { addresses, total_count } = await pagination(
     ctx.from.id,
     addressRepository,
-    offset,
+    offset * PAGINATION_LIMIT,
   )
 
   if (!addresses) {

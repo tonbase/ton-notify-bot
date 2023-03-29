@@ -1,12 +1,12 @@
 const { Markup: m } = require('telegraf')
 
-module.exports = (addressId, isHideOpenButton, i18n) => {
+module.exports = (addressId, isHideOpenButton, returnPage, i18n) => {
   return m.inlineKeyboard(
     [
       m.callbackButton(i18n.t('buttons.undo'), `undo_${addressId}`),
       m.callbackButton(
         i18n.t('buttons.openAddressesList'),
-        `open-list_${addressId}`,
+        `open-list_${addressId}_${returnPage}`,
         isHideOpenButton,
       ),
     ],

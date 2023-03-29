@@ -1,7 +1,7 @@
 const getUndoDeleteKeyboard = require('../keyboards/undoDelete')
 
 module.exports = (ctx) => {
-  const [addressId] = ctx.match
+  const addressId = ctx.match[1]
 
-  return ctx.editMessageReplyMarkup(getUndoDeleteKeyboard(addressId, true, ctx.i18n))
+  return ctx.editMessageReplyMarkup(getUndoDeleteKeyboard(addressId, true, null, ctx.i18n))
 }

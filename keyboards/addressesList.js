@@ -1,4 +1,5 @@
 const { Markup: m } = require('telegraf')
+const { PAGINATION_LIMIT } = require('../constants')
 const formatAddress = require('../utils/formatAddress')
 
 const generatePaginationKeyboard = (current, count, prefix) => {
@@ -111,7 +112,8 @@ module.exports = (addresses, pagination) => {
   })
 
   const { current, total_count: totalCount } = pagination
-  const navigationButtons = generatePaginationKeyboard(current, totalCount, 'list_')
-  
+  const pagesCount = Math.ceil(totalCount / PAGINATION_LIMIT)
+  const navigationButtons = generatePaginationKeyboard(current, pagesCount, 'list_')
+
   return m.inlineKeyboard([...buttons, navigationButtons])
 }
