@@ -83,7 +83,10 @@ const scanAddresses = async () => {
     }
 
     await Counters.findOneAndUpdate(lastCheckedBlockFilter, { data: { seqno } })
+
+    await sleep(100)
   }
+
 
   IS_RUNNING = false
 }
