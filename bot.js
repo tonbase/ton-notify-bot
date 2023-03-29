@@ -67,6 +67,6 @@ bot.action(/(?<=^delete_).+/, deleteAddress)
 
 bot.action(/(?<=^undo_).+/, Composer.tap(undoAddressDelete), openAddress)
 
-bot.action(/(?<=^open-list_)(.+)_(\d+)$/, Composer.tap(editUndoKeyboard), sendAddressesList)
+bot.action(/(?<=^open-list-)(.+)-(\d+)$/, Composer.tap(editUndoKeyboard), sendAddressesList)
 
 module.exports = (options) => bot.launch(options).then(() => log.info('bot was launched'))
