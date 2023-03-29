@@ -35,7 +35,10 @@ const encodeMd5 = (str) => crypto.createHash('md5').update(str).digest('hex')
 module.exports = async (data) => {
   const transaction = data
 
+  const fromDefaultTag = knownAccounts[transaction.from] || formatAddress(transaction.from)
+  const toDefaultTag = knownAccounts[transaction.to] || formatAddress(transaction.to)
   if (excludedAddresses.includes(transaction.from) || excludedAddresses.includes(transaction.to)) {
+    log.info(`Ignored ${excludedAddresses.includes(transaction.from) ? fromDefaultTag : toDefaultTag}`)
     return false
   }
 
@@ -53,9 +56,6 @@ module.exports = async (data) => {
   const formattedToBalance =
     toBalance || toBalance === 0 ? formatBalance(ton.utils.fromNano(toBalance)) : ''
   const formattedTransactionValue = formatTransactionValue(transaction.value)
-
-  const fromDefaultTag = knownAccounts[transaction.from] || formatAddress(transaction.from)
-  const toDefaultTag = knownAccounts[transaction.to] || formatAddress(transaction.to)
 
   const comment = transaction.comment ? escapeHTML(transaction.comment) : ''
 
@@ -149,16 +149,18 @@ module.exports = async (data) => {
       price: transactionPrice && i18n.t('en', 'transaction.price', { value: transactionPrice }),
       comment: comment && i18n.t('en', 'transaction.comment', { text: comment }),
     })
+    
+    const encodedMessageText = encodeMd5(rawMessageText)
     if (
       SENT_RAW_MESSAGES
-        .find(({ id, hash }) => id === +NOTIFICATIONS_CHANNEL_ID && hash === encodeMd5(rawMessageText))
+        .find(({ id, hash }) => +id === +NOTIFICATIONS_CHANNEL_ID && hash === encodedMessageText)
     ) {
-      log.info(`block send copy message to ${NOTIFICATIONS_CHANNEL_ID}: ${rawMessageText}`)
+      log.info(`Block send copy message to ${NOTIFICATIONS_CHANNEL_ID}: ${rawMessageText}`)
       return false
     }
     SENT_RAW_MESSAGES.push({
       id: +NOTIFICATIONS_CHANNEL_ID,
-      hash: encodeMd5(rawMessageText),
+      hash: encodedMessageText,
       sentDate: new Date(),
     })
     await telegram.sendMessage(

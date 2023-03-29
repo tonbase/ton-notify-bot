@@ -63,18 +63,14 @@ const scanAddresses = async () => {
   log.info(`Enqueue master blocks ${currentSeqno}-${lastSeqno}`)
 
   const excludedTransactionTypes = ['trans_tick_tock']
-  const excludedAccounts = [
-    'Ef8zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM0vF',
-  ]
 
   for (let seqno = currentSeqno; seqno < lastSeqno; seqno++) {
     const transactionsList = await ton.getTransactionsByMasterchainSeqno(seqno)
     const filteredTransactionsList = transactionsList
       .filter((t) => !excludedTransactionTypes
-          .includes(t.transaction_type) &&
-        !excludedAccounts
-          .includes(new ton.utils.Address(t.account).toString(true, true, true, false))
+        .includes(t.transaction_type)
       )
+
     log.info(`Received ${filteredTransactionsList.length} transactions on seqno: ${seqno}`)
     for (const [index, transaction] of filteredTransactionsList.entries()) {
       transaction.address = new ton.utils.Address(transaction.account)
