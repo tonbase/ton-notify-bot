@@ -17,7 +17,7 @@ module.exports = async (ctx) => {
   if (!addresses) {
     return false
   }
-  
+
   const paginationOptions = { current: offset, total_count }
   return ctx.editMessageText(
     ctx.i18n.t('list.chooseAddress'),

@@ -1,5 +1,6 @@
 const { Extra } = require('telegraf')
 const AddressRepository = require('../repositories/address')
+const { PAGINATION_LIMIT } = require('../constants')
 const getAddressMenuKeyboard = require('../keyboards/addressMenu')
 const formatAddress = require('../utils/formatAddress')
 
@@ -8,13 +9,20 @@ module.exports = async (ctx) => {
 
   const addressRepository = new AddressRepository()
   const address = await addressRepository.getOneById(addressId)
+  const addressString = address.address
+
+  const addressPage = await addressRepository.getAddressPaginationPage(
+    ctx.from.id,
+    addressString,
+    PAGINATION_LIMIT,
+  )
 
   return ctx.editMessageText(
     ctx.i18n.t('address.chosen', {
-      address: address.address,
+      address: addressString,
       formatAddress,
       tag: address.tag ? ` ${address.tag}` : '',
     }),
-    Extra.HTML().markup(getAddressMenuKeyboard(address, ctx.me, ctx.i18n)),
+    Extra.HTML().markup(getAddressMenuKeyboard(address, ctx.me, ctx.i18n, addressPage)),
   )
 }
