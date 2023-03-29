@@ -7,8 +7,8 @@ let price = 0
 
 const scanPrice = async () => {
   try {
-    // fetch price https://www.okx.com/api/v5/market/ticker?instId=TON-USDT-SWAP
-    const { data: { data: [{ last }] } } = await axios.get('https://www.okx.com/api/v5/market/ticker?instId=TON-USDT-SWAP')
+    const { data: { data: [{ last }] } } = await axios
+      .get('https://www.okx.com/api/v5/market/ticker?instId=TON-USDT-SWAP')
     price = last
   } catch (err) {
     log.error(`Price scan error: ${err}`)
