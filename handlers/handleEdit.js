@@ -15,7 +15,7 @@ module.exports = async (ctx) => {
 
   await ctx.editMessageText(
     ctx.i18n.t('address.sendTag', { address, formatAddress }),
-    Extra.HTML().markup(getBackToAddressKeyboard(_id, ctx.i18n)),
+    Extra.HTML().webPreview(false).markup(getBackToAddressKeyboard(_id, ctx.i18n)),
   )
 
   return ctx.scene.enter('editTag', { address_id: addressId })

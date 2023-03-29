@@ -14,9 +14,9 @@ module.exports = async (ctx) => {
   await ctx.replyWithHTML(ctx.i18n.t('address.tagEdited', { address }))
   return ctx.replyWithHTML(
     ctx.i18n.t('address.chosen', {
+      tag,
       address,
       formatAddress,
-      tag: ` ${tag}`,
     }),
     Extra.markup(getAddressMenuKeyboard({ _id, notifications, address }, ctx.me, ctx.i18n)),
   )

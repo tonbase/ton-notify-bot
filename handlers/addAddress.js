@@ -64,7 +64,7 @@ module.exports = async (ctx) => {
       ctx.i18n.t('address.chosen', {
         address,
         formatAddress,
-        tag: oldTag ? ` ${oldTag}` : '',
+        tag: oldTag,
       }),
       Extra.markup(getAddressMenuKeyboard({ _id, notifications, address }, ctx.me, ctx.i18n)),
     )
