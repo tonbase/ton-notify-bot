@@ -1,6 +1,6 @@
 const { Markup: m } = require('telegraf')
 
-module.exports = (address, botUsername, i18n, addressPage) => {
+module.exports = (address, botUsername, addressPage, i18n) => {
   const { _id, notifications, address: addressId } = address
   const notificationsState = notifications
     ? i18n.t('buttons.notificationsOn')

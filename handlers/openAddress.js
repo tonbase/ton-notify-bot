@@ -23,6 +23,6 @@ module.exports = async (ctx) => {
       formatAddress,
       tag: address.tag ? ` ${address.tag}` : '',
     }),
-    Extra.HTML().markup(getAddressMenuKeyboard(address, ctx.me, ctx.i18n, addressPage)),
+    Extra.HTML().markup(getAddressMenuKeyboard(address, ctx.me, addressPage, ctx.i18n)),
   )
 }
