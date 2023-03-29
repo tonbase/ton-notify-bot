@@ -49,11 +49,17 @@ const config = convict({
       default: 'https://testnet.toncenter.com/api/index',
       env: 'TON_INDEX_URL',
     },
-    key: {
-      doc: 'TON Center API Key.',
+    node_key: {
+      doc: 'TON Node API Key.',
       format: String,
       default: '',
-      env: 'TON_API_KEY',
+      env: 'TON_NODE_API_KEY',
+    },
+    index_key: {
+      doc: 'TON Index API Key.',
+      format: String,
+      default: '',
+      env: 'TON_INDEX_API_KEY',
     },
   },
   synchronizer: {
