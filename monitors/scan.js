@@ -78,7 +78,7 @@ const scanAddresses = async () => {
 
       log.info(`Adding transaction #${Number(index) + 1} ${transaction
         .transaction_type} to queue (${transaction.address})`)
-      // console.log(transaction)
+
       addTransactionToQueue(transaction)
     }
 
