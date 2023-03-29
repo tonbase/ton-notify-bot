@@ -113,7 +113,13 @@ module.exports = (addresses, pagination) => {
 
   const { current, total_count: totalCount } = pagination
   const pagesCount = Math.ceil(totalCount / PAGINATION_LIMIT)
-  const navigationButtons = generatePaginationKeyboard(current, pagesCount, 'list_')
 
-  return m.inlineKeyboard([...buttons, navigationButtons])
+  const addressesListKeyboard = [...buttons]
+  if (pagesCount > 1) {
+    addressesListKeyboard.push(
+      generatePaginationKeyboard(current, pagesCount, 'list_')
+    )
+  }
+
+  return m.inlineKeyboard(addressesListKeyboard)
 }
