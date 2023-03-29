@@ -35,7 +35,10 @@ const encodeMd5 = (str) => crypto.createHash('md5').update(str).digest('hex')
 module.exports = async (data) => {
   const transaction = data
 
+  const fromDefaultTag = knownAccounts[transaction.from] || formatAddress(transaction.from)
+  const toDefaultTag = knownAccounts[transaction.to] || formatAddress(transaction.to)
   if (excludedAddresses.includes(transaction.from) || excludedAddresses.includes(transaction.to)) {
+    log.info(`Ignored ${excludedAddresses.includes(transaction.from) ? fromDefaultTag : toDefaultTag}`)
     return false
   }
 
@@ -45,17 +48,14 @@ module.exports = async (data) => {
   })
 
   let sendNotifications = 0
-  const fromBalance = await ton.provider.getBalance(transaction.from).catch(() => {})
-  const toBalance = await ton.provider.getBalance(transaction.to).catch(() => {})
+  const fromBalance = await ton.node.getBalance(transaction.from).catch(() => { });
+  const toBalance = await ton.node.getBalance(transaction.to).catch(() => { });
 
   const formattedFromBalance =
     fromBalance || fromBalance === 0 ? formatBalance(ton.utils.fromNano(fromBalance)) : ''
   const formattedToBalance =
     toBalance || toBalance === 0 ? formatBalance(ton.utils.fromNano(toBalance)) : ''
   const formattedTransactionValue = formatTransactionValue(transaction.value)
-
-  const fromDefaultTag = knownAccounts[transaction.from] || formatAddress(transaction.from)
-  const toDefaultTag = knownAccounts[transaction.to] || formatAddress(transaction.to)
 
   const comment = transaction.comment ? escapeHTML(transaction.comment) : ''
 
@@ -107,7 +107,7 @@ module.exports = async (data) => {
         comment: comment && i18n.t(user.language, 'transaction.comment', { text: comment }),
       })
 
-      if (SENT_RAW_MESSAGES.find(({id, hash}) => id === userId && hash === encodeMd5(rawMessageText))) {
+      if (SENT_RAW_MESSAGES.find(({ id, hash }) => id === userId && hash === encodeMd5(rawMessageText))) {
         continue
       }
 
@@ -133,12 +133,6 @@ module.exports = async (data) => {
     await timeout(200)
   }
 
-  await CountersModel.updateOne(
-    {},
-    { $inc: { send_notifications: sendNotifications } },
-    { upsert: true },
-  )
-
   if (new Big(transaction.value).gte(MIN_TRANSACTION_AMOUNT)) {
     const rawMessageText = i18n.t('en', 'transaction.channelMessage', {
       from: transaction.from,
@@ -155,23 +149,26 @@ module.exports = async (data) => {
       price: transactionPrice && i18n.t('en', 'transaction.price', { value: transactionPrice }),
       comment: comment && i18n.t('en', 'transaction.comment', { text: comment }),
     })
+    const encodedMessageText = encodeMd5(rawMessageText)
     if (
       SENT_RAW_MESSAGES
-      .find(({id, hash}) => id === +NOTIFICATIONS_CHANNEL_ID && hash === encodeMd5(rawMessageText))
+        .find(({ id, hash }) => Number(id) === NOTIFICATIONS_CHANNEL_ID && hash === encodedMessageText)
     ) {
-      log.info(`block send copy message to ${NOTIFICATIONS_CHANNEL_ID}: ${rawMessageText}`)
+      log.info(`Block send copy message to ${NOTIFICATIONS_CHANNEL_ID}: ${rawMessageText}`)
       return false
     }
     SENT_RAW_MESSAGES.push({
-      id: +NOTIFICATIONS_CHANNEL_ID,
-      hash: encodeMd5(rawMessageText),
+      id: Number(NOTIFICATIONS_CHANNEL_ID),
+      hash: encodedMessageText,
       sentDate: new Date(),
     })
     await telegram.sendMessage(
       NOTIFICATIONS_CHANNEL_ID,
       rawMessageText,
       Extra.HTML().webPreview(false)
-    )
+    ).catch((err) => {
+      log.error(`Transaction notification sending error: ${err}`)
+    })
   }
 
   await timeout(500)

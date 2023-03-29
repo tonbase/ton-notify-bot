@@ -104,3 +104,6 @@ dist
 .tern-port
 
 .idea
+
+# Lock file
+pnpm-lock.yaml

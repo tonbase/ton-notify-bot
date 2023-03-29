@@ -37,17 +37,23 @@ const config = convict({
     env: 'MIN_TRANSACTION_AMOUNT',
   },
   ton: {
-    provider: {
-      doc: 'TON API url.',
+    node: {
+      doc: 'TON Node API URL.',
       format: String,
       default: 'https://testnet.toncenter.com/api/v2/jsonRPC',
-      env: 'TON_PROVIDER_URL',
+      env: 'TON_NODE_URL',
+    },
+    index: {
+      doc: 'TON Index API URL.',
+      format: String,
+      default: 'https://testnet.toncenter.com/api/index',
+      env: 'TON_INDEX_URL',
     },
     key: {
       doc: 'TON Center API Key.',
       format: String,
       default: '',
-      env: 'TON_PROVIDER_KEY',
+      env: 'TON_API_KEY',
     },
   },
   synchronizer: {
