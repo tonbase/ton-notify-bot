@@ -8,7 +8,7 @@ module.exports = async (ctx) => {
   const offset = Number(offsetStr) || 0
 
   const addressRepository = new AddressRepository()
-  const { addresses, pagination_options: paginationOptions } = await pagination(
+  const { addresses, total_count } = await pagination(
     ctx.from.id,
     addressRepository,
     offset,
@@ -17,9 +17,10 @@ module.exports = async (ctx) => {
   if (!addresses) {
     return false
   }
-
+  
+  const paginationOptions = { current: offset, total_count }
   return ctx.editMessageText(
     ctx.i18n.t('list.chooseAddress'),
-    Extra.markup(getAddressesListKeyboard(addresses, paginationOptions, ctx.i18n)),
+    Extra.markup(getAddressesListKeyboard(addresses, paginationOptions)),
   )
 }

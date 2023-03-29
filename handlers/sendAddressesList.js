@@ -5,7 +5,7 @@ const getAddressesListKeyboard = require('../keyboards/addressesList')
 
 module.exports = async (ctx) => {
   const addressRepository = new AddressRepository()
-  const { addresses, pagination_options: paginationOptions } = await pagination(
+  const { addresses, total_count } = await pagination(
     ctx.from.id,
     addressRepository,
     0,
@@ -15,9 +15,10 @@ module.exports = async (ctx) => {
     return ctx.replyWithHTML(ctx.i18n.t('list.empty'))
   }
 
+  const paginationOptions = { current: 0, total_count }
   return ctx.replyWithHTML(
     ctx.i18n.t('list.chooseAddress'),
-    Extra.markup(getAddressesListKeyboard(addresses, paginationOptions, ctx.i18n)).webPreview(
+    Extra.markup(getAddressesListKeyboard(addresses, paginationOptions)).webPreview(
       false,
     ),
   )
