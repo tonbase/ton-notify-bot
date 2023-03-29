@@ -2,8 +2,14 @@ const mongoose = require('mongoose')
 
 const countersSchema = new mongoose.Schema(
   {
-    send_notifications: Number,
-    last_checked_block: Number
+    name: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    data: {
+      type: Object,
+    },
   },
   {
     versionKey: false,

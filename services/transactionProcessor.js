@@ -133,12 +133,6 @@ module.exports = async (data) => {
     await timeout(200)
   }
 
-  await CountersModel.updateOne(
-    {},
-    { $inc: { send_notifications: sendNotifications } },
-    { upsert: true },
-  )
-
   if (new Big(transaction.value).gte(MIN_TRANSACTION_AMOUNT)) {
     const rawMessageText = i18n.t('en', 'transaction.channelMessage', {
       from: transaction.from,
@@ -171,7 +165,9 @@ module.exports = async (data) => {
       NOTIFICATIONS_CHANNEL_ID,
       rawMessageText,
       Extra.HTML().webPreview(false)
-    )
+    ).catch((err) => {
+      log.error(`Transaction notification sending error: ${err}`)
+    })
   }
 
   await timeout(500)

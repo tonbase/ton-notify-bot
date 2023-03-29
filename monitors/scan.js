@@ -36,59 +36,70 @@ const addTransactionToQueue = (transaction) => {
 
 const scanAddresses = async () => {
   if (IS_RUNNING) {
-    // log.warn('scan is running')
+    log.warn('Scan is running')
     return false
   }
   IS_RUNNING = true
 
-  const lastEnqueuedMaster = await Counters.findOne().sort({ updated_at: -1 });
-  const masterchainInfo = await ton.node.send('getMasterchainInfo', {});
-  
-  const curSeqno = lastEnqueuedMaster?.last_checked_block;
-  const lastSeqno = masterchainInfo.last.seqno;
-  if (!curSeqno || curSeqno == 0) {
-    await Counters.updateOne({
-      last_checked_block: lastSeqno
-    });
-    IS_RUNNING = false;
-    return false;
+  const lastCheckedBlockFilter = { name: 'lastCheckedBlock' }
+
+  const lastEnqueuedMaster = await Counters.findOne(lastCheckedBlockFilter)
+  const masterchainInfo = await ton.node.send('getMasterchainInfo', {})
+  const lastSeqno = masterchainInfo.last.seqno
+
+  let currentSeqno = lastEnqueuedMaster?.data?.seqno
+
+  if (!currentSeqno || currentSeqno === 0) {
+    await Counters.findOneAndUpdate(
+      lastCheckedBlockFilter,
+      { data: { seqno: lastSeqno } },
+      { upsert: true },
+    )
+    currentSeqno = lastSeqno
   }
-  
-  log.info(`Enqueue master blocks ${curSeqno}-${lastSeqno}`);
 
-  for (let seqno = curSeqno; seqno < lastSeqno; seqno++) {
-    const transactionsList = await ton.getTransactionsByMasterchainSeqno(seqno);
-    log.info(`Received ${transactionsList.lenght} transactions on seqno: ${seqno}`);
+  currentSeqno += 1 // to skip check one block twice
 
-    for (const index in transactionsList) {
-      const transaction = transactionsList[index];
-      transaction.address = new ton.utils.Address(transaction.account).toString(true, true, true, false,)
+  log.info(`Enqueue master blocks ${currentSeqno}-${lastSeqno}`)
 
-      log.info(`Adding transaction #${+index + 1} to queue (${transaction.address})`);
+  const excludedTransactionTypes = ['trans_tick_tock']
+  const excludedAccounts = [
+    'Ef8zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM0vF',
+  ]
+
+  for (let seqno = currentSeqno; seqno < lastSeqno; seqno++) {
+    const transactionsList = await ton.getTransactionsByMasterchainSeqno(seqno)
+    const filteredTransactionsList = transactionsList
+      .filter((t) => !excludedTransactionTypes
+          .includes(t.transaction_type) &&
+        !excludedAccounts
+          .includes(new ton.utils.Address(t.account).toString(true, true, true, false))
+      )
+    log.info(`Received ${filteredTransactionsList.length} transactions on seqno: ${seqno}`)
+    for (const [index, transaction] of filteredTransactionsList.entries()) {
+      transaction.address = new ton.utils.Address(transaction.account)
+        .toString(true, true, true, false)
+
+      log.info(`Adding transaction #${Number(index) + 1} ${transaction
+        .transaction_type} to queue (${transaction.address})`)
       // console.log(transaction)
-      addTransactionToQueue(transaction);
+      addTransactionToQueue(transaction)
     }
-  }
 
-  await Counters.updateOne({
-    last_checked_block: lastSeqno
-  });
+    await Counters.findOneAndUpdate(lastCheckedBlockFilter, { data: { seqno } })
+  }
 
   IS_RUNNING = false
 }
 
 mongoose
   .connect(config.get('db'))
-  .then(async () => {
-    await Counters.updateOne({
-      last_checked_block: 0
-    });
-  })
   .then(() =>
     setInterval(
       () =>
         scanAddresses().catch((err) => {
           IS_RUNNING = false
+          console.error(err)
           log.error(`Scan adresses error: ${err}`)
         }),
       config.get('synchronizer.interval') * 1000,
