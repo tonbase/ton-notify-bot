@@ -1,6 +1,6 @@
 const { Markup: m } = require('telegraf')
 
-module.exports = (address, botUsername, i18n) => {
+module.exports = (address, botUsername, addressPage, i18n) => {
   const { _id, notifications, address: addressId } = address
   const notificationsState = notifications
     ? i18n.t('buttons.notificationsOn')
@@ -18,7 +18,7 @@ module.exports = (address, botUsername, i18n) => {
         i18n.t('address.share', { address: addressId, username: botUsername }),
       ),
       m.callbackButton(i18n.t('buttons.deleteAddress'), `delete_${_id}`),
-      m.callbackButton(i18n.t('buttons.backToList'), 'list_0'),
+      m.callbackButton(i18n.t('buttons.backToList'), `list_${addressPage}`),
     ],
     { columns: 2 },
   )

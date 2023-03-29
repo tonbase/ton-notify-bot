@@ -14,6 +14,27 @@ class AddressRepository {
     return AddressModel.find({ address: { $in: wrapped }, ...filter })
   }
 
+  async getAddressPaginationPage(userId, address, pagination) {
+    const result = await AddressModel.aggregate([
+      {
+        $facet: {
+          addresses: [
+            { $match: { user_id: userId, is_deleted: false } },
+            { $skip: 0 },
+          ],
+        },
+      },
+    ])
+
+    const { addresses } = result[0]
+    const index = addresses.findIndex((v) => v.address === address)
+    if (index === -1) {
+      return 1
+    }
+
+    return Math.floor(index / pagination)
+  }
+
   async paginationByUserId(userId, offset = 0, limit, filter = {}) {
     const result = await AddressModel.aggregate([
       {
