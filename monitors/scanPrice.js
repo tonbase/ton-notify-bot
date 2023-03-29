@@ -1,29 +1,20 @@
-const { promisify } = require('util')
+const axios = require('axios')
 
-const CoinGecko = require('coingecko-api')
 const log = require('../utils/log')
-
-const CoinGeckoClient = new CoinGecko()
-
-const timeout = promisify(setTimeout)
+const { sleep } = require('../utils/sleep')
 
 let price = 0
 
 const scanPrice = async () => {
   try {
-    const { success, data } = await CoinGeckoClient.simple.price({
-      ids: 'the-open-network',
-      vs_currencies: ['usd'],
-    })
-
-    if (success) {
-      price = data['the-open-network'].usd
-    }
+    // fetch price https://www.okx.com/api/v5/market/ticker?instId=TON-USDT-SWAP
+    const { data: { data: [{ last }] } } = await axios.get('https://www.okx.com/api/v5/market/ticker?instId=TON-USDT-SWAP')
+    price = last
   } catch (err) {
     log.error(`Price scan error: ${err}`)
   }
 
-  await timeout(60 * 1000)
+  await sleep(60 * 1000)
   scanPrice()
 }
 
