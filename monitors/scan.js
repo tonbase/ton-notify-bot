@@ -9,6 +9,7 @@ const ton = require('../services/ton')
 const log = require('../utils/log')
 const Counters = require('../models/counters')
 const transactionProcessor = require('../services/transactionProcessor')
+const { sleep } = require('../utils/sleep')
 
 let IS_RUNNING = false
 
