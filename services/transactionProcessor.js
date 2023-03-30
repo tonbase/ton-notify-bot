@@ -29,13 +29,20 @@ const userRepository = new UserRepository()
 const NOTIFICATIONS_CHANNEL_ID = config.get('bot.notifications_channel_id')
 const MIN_TRANSACTION_AMOUNT = config.get('min_transaction_amount')
 
-const cacheForHashes = new LRUCache({
+const cache = new LRUCache({
   ttl: 30 * 60 * 1000, // 30 minutes
+  max: 1000,
 })
 
-module.exports = async (data, hash) => {
+function getBalance(address) {
+  log.info(`Getting balance from API: ${address}`)
+  return ton.node.getBalance(address)
+}
+
+module.exports = async (data, meta) => {
   const transaction = data
-  const transactionHash = hash
+  const transactionHash = meta.hash
+  const transactionSeqno = meta.seqno
 
   const fromDefaultTag = getTitleByAddress(transaction.from) || formatAddress(transaction.from)
   const toDefaultTag = getTitleByAddress(transaction.to) || formatAddress(transaction.to)
@@ -44,18 +51,22 @@ module.exports = async (data, hash) => {
     return false
   }
 
-  if (cacheForHashes.get(transactionHash) !== undefined) {
+  if (cache.get(transactionHash) !== undefined) {
     return false
   }
-  cacheForHashes.set(transactionHash, data)
+  cache.set(transactionHash, data)
 
   const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
     is_deleted: false,
     notifications: true,
   })
 
-  const fromBalance = await ton.node.getBalance(transaction.from).catch(() => { });
-  const toBalance = await ton.node.getBalance(transaction.to).catch(() => { });
+  const fromBalanceKey = `${transaction.from}:${transactionSeqno}`
+  const toBalanceKey = `${transaction.to}:${transactionSeqno}`
+
+  // TODO: cache address balance
+  const fromBalance = await getBalance(transaction.from)
+  const toBalance = await getBalance(transaction.to)
 
   const formattedFromBalance =
     fromBalance || fromBalance === 0 ? formatBalance(ton.utils.fromNano(fromBalance)) : ''

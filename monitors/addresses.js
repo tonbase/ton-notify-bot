@@ -9,7 +9,6 @@ const updateAddresses = async () => {
   try {
     const { data } = await axios.get('https://catchain.github.io/tonscan/src/addrbook.json')
 
-    const list = {};
     for (const adr in data) {
       const address = data[adr]
       const title = (typeof address === 'string') ? address :
