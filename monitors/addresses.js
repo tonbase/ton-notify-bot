@@ -22,7 +22,7 @@ const updateAddresses = async () => {
       knownAccounts[adr] = title
     }
   } catch (err) {
-    log.error(`Price scan error: ${err}`)
+    log.error(`Updating book of addresses error: ${err}`)
   }
 
   await sleep(60 * 60 * 1000) // 1 hour
