@@ -22,6 +22,7 @@
     "chalk": "^4.1.2",
     "convict": "^5.2.1",
     "dotenv": "^10.0.0",
+    "lru-cache": "^8.0.4",
     "mongoose": "^6.0.5",
     "node-fetch": "^2.6.2",
     "telegraf": "^3.39.0",

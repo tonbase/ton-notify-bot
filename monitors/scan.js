@@ -32,7 +32,7 @@ const addTransactionToQueue = (transaction) => {
     comment: comment && isDataText
       ? new TextDecoder().decode(ton.utils.base64ToBytes(comment))
       : '',
-  })
+  }, message.hash)
 }
 
 const scanAddresses = async () => {
