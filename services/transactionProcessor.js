@@ -1,6 +1,8 @@
-const crypto = require('crypto')
+/* eslint-disable no-continue */
+/* eslint-disable no-await-in-loop */
 const { Telegram, Extra } = require('telegraf')
 const Big = require('big.js')
+const LRUCache = require('lru-cache')
 const { promisify } = require('util')
 const config = require('../config')
 const log = require('../utils/log')
@@ -9,13 +11,12 @@ const ton = require('./ton')
 const getPrice = require('../monitors/scanPrice')
 const AddressRepository = require('../repositories/address')
 const UserRepository = require('../repositories/user')
-const CountersModel = require('../models/counters')
 const formatAddress = require('../utils/formatAddress')
 const formatTransactionValue = require('../utils/formatTransactionValue')
 const formatBalance = require('../utils/formatBalance')
 const formatTransactionPrice = require('../utils/formatTransactionPrice')
 const escapeHTML = require('../utils/escapeHTML')
-const knownAccounts = require('../data/addresses.json')
+const getTitleByAddress = require('../monitors/addresses')
 const excludedAddresses = require('../data/excludedAddresses.json')
 
 const timeout = promisify(setTimeout)
@@ -28,28 +29,44 @@ const userRepository = new UserRepository()
 const NOTIFICATIONS_CHANNEL_ID = config.get('bot.notifications_channel_id')
 const MIN_TRANSACTION_AMOUNT = config.get('min_transaction_amount')
 
-const SENT_RAW_MESSAGES = []
+const cache = new LRUCache({
+  ttl: 30 * 60 * 1000, // 30 minutes
+  max: 1000,
+})
 
-const encodeMd5 = (str) => crypto.createHash('md5').update(str).digest('hex')
+function getBalance(address) {
+  log.info(`Getting balance from API: ${address}`)
+  return ton.node.getBalance(address)
+}
 
-module.exports = async (data) => {
+module.exports = async (data, meta) => {
   const transaction = data
+  const transactionHash = meta.hash
+  const transactionSeqno = meta.seqno
 
-  const fromDefaultTag = knownAccounts[transaction.from] || formatAddress(transaction.from)
-  const toDefaultTag = knownAccounts[transaction.to] || formatAddress(transaction.to)
+  const fromDefaultTag = getTitleByAddress(transaction.from) || formatAddress(transaction.from)
+  const toDefaultTag = getTitleByAddress(transaction.to) || formatAddress(transaction.to)
   if (excludedAddresses.includes(transaction.from) || excludedAddresses.includes(transaction.to)) {
     log.info(`Ignored ${excludedAddresses.includes(transaction.from) ? fromDefaultTag : toDefaultTag}`)
     return false
   }
+
+  if (cache.get(transactionHash) !== undefined) {
+    return false
+  }
+  cache.set(transactionHash, data)
 
   const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
     is_deleted: false,
     notifications: true,
   })
 
-  let sendNotifications = 0
-  const fromBalance = await ton.node.getBalance(transaction.from).catch(() => { });
-  const toBalance = await ton.node.getBalance(transaction.to).catch(() => { });
+  const fromBalanceKey = `${transaction.from}:${transactionSeqno}`
+  const toBalanceKey = `${transaction.to}:${transactionSeqno}`
+
+  // TODO: cache address balance
+  const fromBalance = await getBalance(transaction.from)
+  const toBalance = await getBalance(transaction.to)
 
   const formattedFromBalance =
     fromBalance || fromBalance === 0 ? formatBalance(ton.utils.fromNano(fromBalance)) : ''
@@ -63,6 +80,7 @@ module.exports = async (data) => {
     ? formatTransactionPrice(new Big(transaction.value).mul(getPrice()))
     : ''
 
+  // eslint-disable-next-line no-restricted-syntax
   for (const { _id, address, tag, user_id: userId } of addresses) {
     try {
       const user = await userRepository.getByTgId(userId)
@@ -107,19 +125,7 @@ module.exports = async (data) => {
         comment: comment && i18n.t(user.language, 'transaction.comment', { text: comment }),
       })
 
-      if (SENT_RAW_MESSAGES.find(({ id, hash }) => id === userId && hash === encodeMd5(rawMessageText))) {
-        continue
-      }
-
-      SENT_RAW_MESSAGES.push({
-        id: userId,
-        hash: encodeMd5(rawMessageText),
-        sentDate: new Date(),
-      })
-
       await telegram.sendMessage(userId, rawMessageText, Extra.HTML().webPreview(false))
-
-      sendNotifications++
 
       await addressRepository.incSendCoinsCounter(_id, 1)
     } catch (err) {
@@ -149,23 +155,11 @@ module.exports = async (data) => {
       price: transactionPrice && i18n.t('en', 'transaction.price', { value: transactionPrice }),
       comment: comment && i18n.t('en', 'transaction.comment', { text: comment }),
     })
-    const encodedMessageText = encodeMd5(rawMessageText)
-    if (
-      SENT_RAW_MESSAGES
-        .find(({ id, hash }) => Number(id) === Number(NOTIFICATIONS_CHANNEL_ID) && hash === encodedMessageText)
-    ) {
-      log.info(`Block send copy message to ${NOTIFICATIONS_CHANNEL_ID}: ${rawMessageText}`)
-      return false
-    }
-    SENT_RAW_MESSAGES.push({
-      id: Number(NOTIFICATIONS_CHANNEL_ID),
-      hash: encodedMessageText,
-      sentDate: new Date(),
-    })
+
     await telegram.sendMessage(
       NOTIFICATIONS_CHANNEL_ID,
       rawMessageText,
-      Extra.HTML().webPreview(false)
+      Extra.HTML().webPreview(false),
     ).catch((err) => {
       log.error(`Transaction notification sending error: ${err}`)
     })

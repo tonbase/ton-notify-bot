@@ -13,7 +13,7 @@ const { sleep } = require('../utils/sleep')
 
 let IS_RUNNING = false
 
-const addTransactionToQueue = (transaction) => {
+const addTransactionToQueue = async (transaction, seqno) => {
   const inMsg = transaction?.in_msg
   const outMsg = transaction?.out_msgs?.[0]
   const message = inMsg?.source && inMsg?.destination ? inMsg : outMsg
@@ -32,6 +32,8 @@ const addTransactionToQueue = (transaction) => {
     comment: comment && isDataText
       ? new TextDecoder().decode(ton.utils.base64ToBytes(comment))
       : '',
+  }, {
+    seqno, hash: message.hash
   })
 }
 
@@ -80,7 +82,7 @@ const scanAddresses = async () => {
       log.info(`Adding transaction #${Number(index) + 1} ${transaction
         .transaction_type} to queue (${transaction.address})`)
 
-      addTransactionToQueue(transaction)
+      addTransactionToQueue(transaction, seqno)
     }
 
     await Counters.findOneAndUpdate(lastCheckedBlockFilter, { data: { seqno } })
