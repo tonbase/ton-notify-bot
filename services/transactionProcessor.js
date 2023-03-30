@@ -34,7 +34,8 @@ const cacheForHashes = new LRUCache({
 })
 
 module.exports = async (data, hash) => {
-  const transaction = data, transactionHash = hash
+  const transaction = data
+  const transactionHash = hash
 
   const fromDefaultTag = knownAccounts[transaction.from] || formatAddress(transaction.from)
   const toDefaultTag = knownAccounts[transaction.to] || formatAddress(transaction.to)
