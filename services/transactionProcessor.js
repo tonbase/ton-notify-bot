@@ -16,7 +16,7 @@ const formatTransactionValue = require('../utils/formatTransactionValue')
 const formatBalance = require('../utils/formatBalance')
 const formatTransactionPrice = require('../utils/formatTransactionPrice')
 const escapeHTML = require('../utils/escapeHTML')
-const knownAccounts = require('../data/addresses.json')
+const getTitleByAddress = require('../monitors/addresses')
 const excludedAddresses = require('../data/excludedAddresses.json')
 
 const timeout = promisify(setTimeout)
@@ -37,8 +37,8 @@ module.exports = async (data, hash) => {
   const transaction = data
   const transactionHash = hash
 
-  const fromDefaultTag = knownAccounts[transaction.from] || formatAddress(transaction.from)
-  const toDefaultTag = knownAccounts[transaction.to] || formatAddress(transaction.to)
+  const fromDefaultTag = getTitleByAddress(transaction.from) || formatAddress(transaction.from)
+  const toDefaultTag = getTitleByAddress(transaction.to) || formatAddress(transaction.to)
   if (excludedAddresses.includes(transaction.from) || excludedAddresses.includes(transaction.to)) {
     log.info(`Ignored ${excludedAddresses.includes(transaction.from) ? fromDefaultTag : toDefaultTag}`)
     return false
