@@ -34,44 +34,28 @@ const cache = new LRUCache({
   max: 1000,
 })
 
-function getBalance(address) {
-  log.info(`Getting balance from API: ${address}`)
-  return ton.node.getBalance(address)
+async function getBalance(address, seqno) {
+  const cacheBalanceKey = `${address}:${seqno}`
+
+  const cachedBalance = cache.get(cacheBalanceKey)
+  if (cachedBalance) {
+    return cachedBalance
+  }
+
+  const balance = await ton.node.getBalance(address)
+  cache.set(cachedBalance, balance)
+  return balance
 }
 
-module.exports = async (data, meta) => {
-  const transaction = data
-  const transactionHash = meta.hash
-  const transactionSeqno = meta.seqno
-
-  const fromDefaultTag = getTitleByAddress(transaction.from) || formatAddress(transaction.from)
-  const toDefaultTag = getTitleByAddress(transaction.to) || formatAddress(transaction.to)
-  if (excludedAddresses.includes(transaction.from) || excludedAddresses.includes(transaction.to)) {
-    log.info(`Ignored ${excludedAddresses.includes(transaction.from) ? fromDefaultTag : toDefaultTag}`)
-    return false
-  }
-
-  if (cache.get(transactionHash) !== undefined) {
-    return false
-  }
-  cache.set(transactionHash, data)
-
-  const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
-    is_deleted: false,
-    notifications: true,
-  })
-
-  const fromBalanceKey = `${transaction.from}:${transactionSeqno}`
-  const toBalanceKey = `${transaction.to}:${transactionSeqno}`
-
-  // TODO: cache address balance
-  const fromBalance = await getBalance(transaction.from)
-  const toBalance = await getBalance(transaction.to)
+async function sendTransactionMessage(addresses, transaction, transactionSeqno) {
+  const fromBalance = await getBalance(transaction.from, transactionSeqno)
+  const toBalance = await getBalance(transaction.to, transactionSeqno)
 
   const formattedFromBalance =
     fromBalance || fromBalance === 0 ? formatBalance(ton.utils.fromNano(fromBalance)) : ''
   const formattedToBalance =
     toBalance || toBalance === 0 ? formatBalance(ton.utils.fromNano(toBalance)) : ''
+
   const formattedTransactionValue = formatTransactionValue(transaction.value)
 
   const comment = transaction.comment ? escapeHTML(transaction.comment) : ''
@@ -80,7 +64,7 @@ module.exports = async (data, meta) => {
     ? formatTransactionPrice(new Big(transaction.value).mul(getPrice()))
     : ''
 
-  // eslint-disable-next-line no-restricted-syntax
+  // eslint-disable-next-line no-restricted-syntax, object-curly-newline
   for (const { _id, address, tag, user_id: userId } of addresses) {
     try {
       const user = await userRepository.getByTgId(userId)
@@ -103,8 +87,8 @@ module.exports = async (data, meta) => {
         address === transaction.from ? 'transaction.send' : 'transaction.receive',
       )
 
-      const fromTag = from && from.tag ? from.tag : fromDefaultTag
-      const toTag = to && to.tag ? to.tag : toDefaultTag
+      const fromTag = from && from.tag ? from.tag : transaction.fromDefaultTag
+      const toTag = to && to.tag ? to.tag : transaction.toDefaultTag
 
       const rawMessageText = i18n.t(user.language, 'transaction.message', {
         type,
@@ -139,12 +123,12 @@ module.exports = async (data, meta) => {
     await timeout(200)
   }
 
-  if (new Big(transaction.value).gte(MIN_TRANSACTION_AMOUNT)) {
+  if (transaction.sendToChannel) {
     const rawMessageText = i18n.t('en', 'transaction.channelMessage', {
       from: transaction.from,
       to: transaction.to,
-      fromTag: fromDefaultTag,
-      toTag: toDefaultTag,
+      fromTag: transaction.fromDefaultTag,
+      toTag: transaction.toDefaultTag,
       fromBalance:
         formattedFromBalance &&
         i18n.t('en', 'transaction.accountBalance', { value: formattedFromBalance }),
@@ -163,6 +147,38 @@ module.exports = async (data, meta) => {
     ).catch((err) => {
       log.error(`Transaction notification sending error: ${err}`)
     })
+  }
+}
+
+module.exports = async (data, meta) => {
+  const transaction = data
+  const transactionHash = meta.hash
+  const transactionSeqno = meta.seqno
+
+  transaction.fromDefaultTag = getTitleByAddress(transaction.from) ||
+    formatAddress(transaction.from)
+  transaction.toDefaultTag = getTitleByAddress(transaction.to) || formatAddress(transaction.to)
+
+  if (excludedAddresses.includes(transaction.from) || excludedAddresses.includes(transaction.to)) {
+    log.info(`Ignored ${excludedAddresses.includes(transaction.from) ? transaction.fromDefaultTag : transaction.toDefaultTag}`)
+    return false
+  }
+
+  if (cache.get(transactionHash) !== undefined) {
+    return false
+  }
+  cache.set(transactionHash, data)
+
+  const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
+    is_deleted: false,
+    notifications: true,
+  })
+
+  transaction.sendToChannel = (new Big(transaction.value).gte(MIN_TRANSACTION_AMOUNT))
+
+  if (addresses.length || transaction.sendToChannel) {
+    log.info(`Sending notify to users(${addresses.length}) or to channel(${transaction.sendToChannel ? '+' : '-'})`)
+    await sendTransactionMessage(addresses, transaction, transactionSeqno)
   }
 
   await timeout(500)
