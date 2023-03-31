@@ -83,5 +83,6 @@ buttons:
   deleteAddress: Delete Address
   undo: Undo
   backToAddress: « Back to Address
+  backToNotifications: « Back to notifications
   backToList: « Back to Address list
   openAddressesList: Open Adress List

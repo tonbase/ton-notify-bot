@@ -1,7 +1,7 @@
 const { Extra } = require('telegraf')
 const Big = require('big.js')
 const AddressRepository = require('../repositories/address')
-const getBackToAddressKeyboard = require('../keyboards/backToAddress')
+const getBackToNotificationsKeyboard = require('../keyboards/backToNotifications')
 const getAddressNotificationsKeyboard = require('../keyboards/addressNotifications')
 
 module.exports = async (ctx) => {
@@ -14,7 +14,7 @@ module.exports = async (ctx) => {
   } catch (error) {
     return ctx.replyWithHTML(
       ctx.i18n.t('address.notifications.invalid'),
-      Extra.HTML().webPreview(false).markup(getBackToAddressKeyboard(addressId, ctx.i18n)),
+      Extra.HTML().webPreview(false).markup(getBackToNotificationsKeyboard(addressId, ctx.i18n)),
     )
   }
 
