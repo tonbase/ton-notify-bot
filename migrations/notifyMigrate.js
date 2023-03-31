@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 const config = require('../config')
 const AddressModel = require('../models/address')
-const log = require('../utils/log');
+const log = require('../utils/log')
 
 mongoose
   .connect(config.get('db'))
