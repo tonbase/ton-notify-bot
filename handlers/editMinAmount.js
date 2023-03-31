@@ -10,7 +10,13 @@ module.exports = async (ctx) => {
 
   try {
     // eslint-disable-next-line no-new
-    new Big(minAmount)
+    const val = new Big(minAmount)
+    if (val.lte(0)) {
+      throw new Error('Value less than 0')
+    }
+    if (val.gt(5e9)) {
+      throw new Error('Value more than 5 000 000 000')
+    }
   } catch (error) {
     return ctx.replyWithHTML(
       ctx.i18n.t('address.notifications.invalid'),
