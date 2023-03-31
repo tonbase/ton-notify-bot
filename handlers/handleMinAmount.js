@@ -8,7 +8,10 @@ module.exports = async (ctx) => {
   const [addressId] = ctx.match
 
   const addressRepository = new AddressRepository()
-  const { _id, address, tag, is_deleted: isDeleted } = await addressRepository.getOneById(addressId)
+  const {
+    _id, address, tag,
+    is_deleted: isDeleted,
+  } = await addressRepository.getOneById(addressId)
 
   if (isDeleted) {
     return ctx.answerCbQuery()
