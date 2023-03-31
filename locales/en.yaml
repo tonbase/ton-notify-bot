@@ -53,7 +53,7 @@ address:
       Invalid number.
 
     edit: |
-      Send me a minimal amount for this address: <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>${tag}
+      Send me a minimal amount for this address: ${tag} <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>
 
       For example: <i>0.1</i> and etc.
 

@@ -2,7 +2,6 @@ const { Extra } = require('telegraf')
 const AddressRepository = require('../repositories/address')
 const getBackToAddressKeyboard = require('../keyboards/backToAddress')
 const formatAddress = require('../utils/formatAddress')
-const formatTag = require('../utils/formatTag')
 
 module.exports = async (ctx) => {
   const [addressId] = ctx.match
@@ -19,9 +18,9 @@ module.exports = async (ctx) => {
 
   await ctx.editMessageText(
     ctx.i18n.t('address.notifications.edit', {
+      tag,
       address,
       formatAddress,
-      tag: formatTag(tag),
     }),
     Extra.HTML().webPreview(false).markup(getBackToAddressKeyboard(_id, ctx.i18n)),
   )
