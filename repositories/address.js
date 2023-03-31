@@ -65,16 +65,29 @@ class AddressRepository {
     return AddressModel.updateOne({ _id: addressId }, { $set: { tag } })
   }
 
+  updateMinAmount(addressId, amount) {
+    return AddressModel.updateOne(
+      { _id: addressId },
+      { $set: { 'notifications.min_amount': amount } },
+    )
+  }
+
   incSendCoinsCounter(addressId, value) {
     return AddressModel.updateOne({ _id: addressId }, { $inc: { 'counters.send_coins': value } })
   }
 
   turnOnNotifications(addressId) {
-    return AddressModel.updateOne({ _id: addressId }, { $set: { notifications: true } })
+    return AddressModel.updateOne(
+      { _id: addressId },
+      { $set: { 'notifications.is_enabled': true } },
+    )
   }
 
   turnOfNotifications(addressId) {
-    return AddressModel.updateOne({ _id: addressId }, { $set: { notifications: false } })
+    return AddressModel.updateOne(
+      { _id: addressId },
+      { $set: { 'notifications.is_enabled': false } },
+    )
   }
 
   softDeleteOne(addressId) {

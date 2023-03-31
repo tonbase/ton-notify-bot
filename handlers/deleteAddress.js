@@ -2,7 +2,6 @@ const { Extra } = require('telegraf')
 const AddressRepository = require('../repositories/address')
 const getUndoDeleteKeyboard = require('../keyboards/undoDelete')
 const formatAddress = require('../utils/formatAddress')
-const formatTag = require('../utils/formatTag')
 const { PAGINATION_LIMIT } = require('../constants')
 
 module.exports = async (ctx) => {
@@ -30,11 +29,13 @@ module.exports = async (ctx) => {
 
   return ctx.editMessageText(
     ctx.i18n.t('address.deleted', {
-      address,
       tag,
+      address,
       formatAddress,
-      formatTag,
     }),
-    Extra.HTML().markup(getUndoDeleteKeyboard(_id, false, returnPage, ctx.i18n)),
+    Extra
+      .webPreview(false)
+      .HTML()
+      .markup(getUndoDeleteKeyboard(_id, false, returnPage, ctx.i18n)),
   )
 }

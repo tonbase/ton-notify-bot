@@ -6,7 +6,10 @@ const addressSchema = new mongoose.Schema(
     address: { type: String, unique: false, required: true },
     tag: { type: String, default: '' },
     is_deleted: { type: Boolean, default: false },
-    notifications: { type: Boolean, default: true },
+    notifications: {
+      is_enabled: { type: Boolean, default: true },
+      min_amount: { type: String, default: '0' },
+    },
     counters: {
       send_coins: { type: Number, default: 0 },
     },

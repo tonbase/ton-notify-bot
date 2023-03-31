@@ -39,14 +39,21 @@ address:
     Send me a tag for this address: <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>
 
     For example: <i>My Address</i> and etc.
-  tagEdited: |
-    The tag of <a href="https://tonscan.org/address/${address}">this address</a> was saved.
   deleted: |
-    The address <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} was deleted.
+    The address ${tag} <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a> was deleted.
   share: |
     t.me/${username}?start=${address}
 
     Use the above link to receive instant notifications for all events of this address 👆
+  notifications:
+    menu: |
+      Here you can set notifications.
+    invalid: |
+      Invalid number.
+    edit: |
+      Send me a minimal amount for this address: ${tag} <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>
+
+      For example: <i>0.1</i> and etc.
 
 list:
   chooseAddress: |
@@ -59,17 +66,21 @@ list:
     Also, you can send me <code>address:tag</code> to add it with the tag once.
 
 buttons:
+  notifications:
+    text: Notifications
+    On: ON
+    Off: Off
+    send: "Send notifications: ${state}"
+    minAmount: "Min. amount: ${state}"
   openAddress: Open Address
   nextPage: Next »
   prevPage: « Prev
-  notificationsOn: ON
-  notificationsOff: OFF
-  notifications: "Notifications: ${state}"
   editTag: Edit Tag
   setTag: Set Tag
   shareAddress: Share Address
   deleteAddress: Delete Address
   undo: Undo
   backToAddress: « Back to Address
+  backToNotifications: « Back to notifications
   backToList: « Back to Address list
   openAddressesList: Open Adress List
