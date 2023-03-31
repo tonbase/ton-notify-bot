@@ -40,7 +40,7 @@ address:
 
     For example: <i>My Address</i> and etc.
   deleted: |
-    The address <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} was deleted.
+    The address ${tag} <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a> was deleted.
   share: |
     t.me/${username}?start=${address}
 
