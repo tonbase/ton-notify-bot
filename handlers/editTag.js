@@ -11,7 +11,6 @@ module.exports = async (ctx) => {
   await addressRepository.updateTag(addressId, tag)
   const { _id, notifications, address } = await addressRepository.getOneById(addressId)
 
-  await ctx.replyWithHTML(ctx.i18n.t('address.tagEdited', { address }))
   return ctx.replyWithHTML(
     ctx.i18n.t('address.chosen', {
       tag,

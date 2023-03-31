@@ -13,6 +13,7 @@ module.exports = (address, i18n) => {
       m.callbackButton(
         i18n.t('buttons.notifications.minAmount', { state: minAmout === '0' ? 'OFF' : `💎 ${minAmout} TON` }),
         `notify_min_amout_${_id}`,
+        !isEnabled
       ),
       m.callbackButton(i18n.t('buttons.backToAddress'), `open_${_id}`),
     ],

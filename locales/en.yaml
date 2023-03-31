@@ -39,8 +39,6 @@ address:
     Send me a tag for this address: <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>
 
     For example: <i>My Address</i> and etc.
-  tagEdited: |
-    The tag of <a href="https://tonscan.org/address/${address}">this address</a> was saved.
   deleted: |
     The address <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} was deleted.
   share: |
@@ -58,9 +56,6 @@ address:
       Send me a minimal amount for this address: <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>
 
       For example: <i>0.1</i> and etc.
-
-    edited: |
-      The minimal notifications amount of <a href="https://tonscan.org/address/${address}">this address</a> was saved.
 
 list:
   chooseAddress: |

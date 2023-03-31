@@ -21,12 +21,8 @@ module.exports = async (ctx) => {
   const addressRepository = new AddressRepository()
   await addressRepository.updateMinAmount(addressId, minAmount)
 
-  const { _id, address, notifications } = await addressRepository.getOneById(addressId)
+  const { _id, notifications } = await addressRepository.getOneById(addressId)
 
-  await ctx.replyWithHTML(
-    ctx.i18n.t('address.notifications.edited', { address }),
-    Extra.HTML().webPreview(false),
-  )
   return ctx.replyWithHTML(
     ctx.i18n.t('address.notifications.menu'),
     Extra.HTML()
