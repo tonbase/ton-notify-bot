@@ -48,10 +48,8 @@ address:
   notifications:
     menu: |
       Here you can set notifications.
-    
     invalid: |
       Invalid number.
-
     edit: |
       Send me a minimal amount for this address: ${tag} <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>
 

@@ -5,6 +5,7 @@ const getOpenAddressKeyboard = require('../keyboards/openAddress')
 const getAddressMenuKeyboard = require('../keyboards/addressMenu')
 const formatAddress = require('../utils/formatAddress')
 const formatTag = require('../utils/formatTag')
+const { PAGINATION_LIMIT } = require('../constants')
 
 module.exports = async (ctx) => {
   const [address = ctx.startPayload, tag] = ctx.match ? ctx.match[0].split(':') : []
@@ -60,13 +61,21 @@ module.exports = async (ctx) => {
       )
     }
 
+    const addressPage = await addressRepository.getAddressPaginationPage(
+      ctx.from.id,
+      address,
+      PAGINATION_LIMIT,
+    )
+
     return ctx.replyWithHTML(
       ctx.i18n.t('address.chosen', {
         address,
         formatAddress,
         tag: oldTag,
       }),
-      Extra.markup(getAddressMenuKeyboard({ _id, notifications, address }, ctx.me, ctx.i18n)),
+      Extra.markup(
+        getAddressMenuKeyboard({ _id, notifications, address }, ctx.me, addressPage, ctx.i18n),
+      ),
     )
   }
 }
