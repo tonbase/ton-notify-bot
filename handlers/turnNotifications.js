@@ -1,9 +1,11 @@
 const AddressRepository = require('../repositories/address')
-const getAddressMenuKeyboard = require('../keyboards/addressMenu')
+const getAddressNotificationsKeyboard = require('../keyboards/addressNotifications')
 
 module.exports = async (ctx) => {
-  const [addressId, currentState] = ctx.match[0].split('_')
-  const notifications = currentState !== 'on'
+  const addressId = ctx.match[1]
+  const state = ctx.match[2]
+
+  const notifications = (state === 'on')
 
   const addressRepository = new AddressRepository()
 
@@ -16,6 +18,6 @@ module.exports = async (ctx) => {
   const address = await addressRepository.getOneById(addressId)
 
   return ctx.editMessageReplyMarkup(
-    getAddressMenuKeyboard(address, ctx.me, ctx.i18n),
+    getAddressNotificationsKeyboard(address, ctx.i18n),
   )
 }

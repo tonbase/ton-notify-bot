@@ -6,6 +6,7 @@ const config = require('./config')
 const log = require('./utils/log')
 
 const editTagScene = require('./scenes/editTag')
+const editMinAmountScene = require('./scenes/editMinAmount')
 
 const sendWelcome = require('./handlers/sendWelcome')
 const addAddress = require('./handlers/addAddress')
@@ -13,6 +14,8 @@ const sendAddressesList = require('./handlers/sendAddressesList')
 const changeListPage = require('./handlers/changeListPage')
 const openAddress = require('./handlers/openAddress')
 const handleEdit = require('./handlers/handleEdit')
+const handleMinAmount = require('./handlers/handleMinAmount')
+const openAddressNotifications = require('./handlers/openAddressNotifications')
 const turnNotifications = require('./handlers/turnNotifications')
 const deleteAddress = require('./handlers/deleteAddress')
 const undoAddressDelete = require('./handlers/undoAddressDelete')
@@ -26,7 +29,7 @@ const bot = new Telegraf(config.get('bot.token'))
 
 const payloadRegex = /^(\w|-){48}/
 
-const stage = new Stage([editTagScene])
+const stage = new Stage([editTagScene, editMinAmountScene])
 
 stage.start(
   Composer.optional(
@@ -61,7 +64,11 @@ bot.action(/(?<=^open_).+/, openAddress)
 
 bot.action(/(?<=^edit_).+/, handleEdit)
 
-bot.action(/(?<=^notify_).+_(on|off)$/, turnNotifications)
+bot.action(/(?<=^notify_min_amout_).+$/, handleMinAmount)
+
+bot.action(/(?<=^notify_)(.+)_(on|off)$/, turnNotifications)
+
+bot.action(/(?<=^notify_).+/, openAddressNotifications)
 
 bot.action(/(?<=^delete_).+/, deleteAddress)
 
