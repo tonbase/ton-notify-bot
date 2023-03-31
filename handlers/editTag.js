@@ -18,6 +18,8 @@ module.exports = async (ctx) => {
       address,
       formatAddress,
     }),
-    Extra.markup(getAddressMenuKeyboard({ _id, notifications, address }, ctx.me, ctx.i18n)),
+    Extra
+      .webPreview(false)
+      .markup(getAddressMenuKeyboard({ _id, notifications, address }, ctx.me, ctx.i18n)),
   )
 }
