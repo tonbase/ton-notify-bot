@@ -33,6 +33,9 @@ module.exports = async (ctx) => {
       address,
       formatAddress,
     }),
-    Extra.HTML().markup(getUndoDeleteKeyboard(_id, false, returnPage, ctx.i18n)),
+    Extra
+      .webPreview(false)
+      .HTML()
+      .markup(getUndoDeleteKeyboard(_id, false, returnPage, ctx.i18n)),
   )
 }
