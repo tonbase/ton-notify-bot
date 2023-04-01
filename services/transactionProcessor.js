@@ -1,9 +1,9 @@
 /* eslint-disable no-continue */
 /* eslint-disable no-await-in-loop */
 const { Telegram, Extra } = require('telegraf')
-const Big = require('big.js')
 const LRUCache = require('lru-cache')
 const { promisify } = require('util')
+const { Big } = require('../utils/big')
 const config = require('../config')
 const log = require('../utils/log')
 const i18n = require('../i18n')

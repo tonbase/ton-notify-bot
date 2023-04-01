@@ -1,7 +1,7 @@
 f = (...args) => console.log(...args)
 j = (obj) => f(JSON.stringify(obj, null, 2))
 
-const Big = require('big.js')
+const { Big } = require('../utils/big')
 const mongoose = require('mongoose')
 
 const config = require('../config')
