@@ -1,4 +1,4 @@
-const Big = require('big.js').default
+const Big = require('big.js')
 
 Big.DP = 40
 Big.PE = 100
