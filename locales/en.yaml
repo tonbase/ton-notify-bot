@@ -72,7 +72,7 @@ buttons:
     Off: Off
     send: "Send notifications: ${state}"
     minAmount: "Min. amount: ${state}"
-    resetMinAmount: Reset Min. amount
+    resetMinAmount: Reset
   openAddress: Open Address
   nextPage: Next »
   prevPage: « Prev
