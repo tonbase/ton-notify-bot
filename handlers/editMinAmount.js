@@ -11,7 +11,7 @@ module.exports = async (ctx) => {
   try {
     // eslint-disable-next-line no-new
     const val = new Big(minAmount)
-    if (val.lte(0)) {
+    if (val.lt(0)) {
       throw new Error('Value less than 0')
     }
     if (val.gt(5e9)) {
@@ -25,7 +25,7 @@ module.exports = async (ctx) => {
   }
 
   const addressRepository = new AddressRepository()
-  await addressRepository.updateMinAmount(addressId, minAmount)
+  await addressRepository.updateMinAmount(addressId, Number(minAmount))
 
   const { _id, notifications } = await addressRepository.getOneById(addressId)
 
