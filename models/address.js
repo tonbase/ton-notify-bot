@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 
+const schemaTypes = mongoose.Schema.Types
 const addressSchema = new mongoose.Schema(
   {
     user_id: { type: Number, unique: false, required: true },
@@ -8,7 +9,10 @@ const addressSchema = new mongoose.Schema(
     is_deleted: { type: Boolean, default: false },
     notifications: {
       is_enabled: { type: Boolean, default: true },
-      min_amount: { type: String, default: '0' },
+      min_amount: {
+        type: schemaTypes.Decimal128,
+        default: 0,
+      },
     },
     counters: {
       send_coins: { type: Number, default: 0 },

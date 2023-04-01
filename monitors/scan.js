@@ -29,6 +29,7 @@ const addTransactionToQueue = async (transaction, seqno) => {
     from: message.source,
     to: message.destination,
     value: ton.utils.fromNano(message.value.toString()),
+    nanoValue: message.value,
     comment: comment && isDataText
       ? new TextDecoder().decode(ton.utils.base64ToBytes(comment))
       : '',
