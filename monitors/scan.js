@@ -22,16 +22,13 @@ const addTransactionToQueue = async (transaction, seqno) => {
     return false
   }
 
-  const comment = message?.msg_data?.text
-  const isDataText = message?.msg_data?.['@type'] === 'msg.dataText'
+  const comment = message?.comment || ''
 
   return transactionProcessor({
     from: message.source,
     to: message.destination,
     value: ton.utils.fromNano(message.value.toString()),
-    comment: comment && isDataText
-      ? new TextDecoder().decode(ton.utils.base64ToBytes(comment))
-      : '',
+    comment
   }, {
     seqno, hash: message.hash
   })
