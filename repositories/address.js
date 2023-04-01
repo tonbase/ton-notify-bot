@@ -72,6 +72,13 @@ class AddressRepository {
     )
   }
 
+  resetMinAmount(addressId) {
+    return AddressModel.updateOne(
+      { _id: addressId },
+      { $set: { 'notifications.min_amount': '0' } },
+    )
+  }
+
   incSendCoinsCounter(addressId, value) {
     return AddressModel.updateOne({ _id: addressId }, { $inc: { 'counters.send_coins': value } })
   }

@@ -5,6 +5,7 @@ module.exports = (address, i18n) => {
   const { _id, notifications } = address
 
   const { is_enabled: isEnabled, min_amount: minAmout } = notifications
+  const stringAmount = String(minAmout)
   return m.inlineKeyboard(
     [
       m.callbackButton(
@@ -15,7 +16,7 @@ module.exports = (address, i18n) => {
         i18n.t(
           'buttons.notifications.minAmount',
           {
-            state: minAmout === '0' ? 'OFF' : `💎 ${ton.utils.fromNano(String(minAmout))} TON`,
+            state: stringAmount === '0' ? 'OFF' : `${ton.utils.fromNano(stringAmount)} TON`,
           },
         ),
         `notify_min_amout_${_id}`,

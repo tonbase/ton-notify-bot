@@ -1,6 +1,6 @@
 const { Extra } = require('telegraf')
 const AddressRepository = require('../repositories/address')
-const getBackToAddressKeyboard = require('../keyboards/backToAddress')
+const getEditMinAmountKeyboard = require('../keyboards/editMinAmount')
 const formatAddress = require('../utils/formatAddress')
 
 module.exports = async (ctx) => {
@@ -17,13 +17,13 @@ module.exports = async (ctx) => {
   }
 
   await ctx.editMessageText(
-    ctx.i18n.t('address.notifications.edit', {
+    ctx.i18n.t('address.notifications.editMinAmount', {
       tag,
       address,
       formatAddress,
     }),
-    Extra.HTML().webPreview(false).markup(getBackToAddressKeyboard(_id, ctx.i18n)),
+    Extra.HTML().webPreview(false).markup(getEditMinAmountKeyboard(_id, ctx.i18n)),
   )
 
-  return ctx.scene.enter('editMinAmout', { address_id: addressId })
+  return ctx.scene.enter('editMinAmount', { address_id: addressId })
 }

@@ -50,7 +50,7 @@ address:
       Here you can set notifications.
     invalid: |
       Invalid number.
-    edit: |
+    editMinAmount: |
       Send me a minimal amount for this address: ${tag} <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>
 
       For example: <i>0.1</i> and etc.
@@ -72,6 +72,7 @@ buttons:
     Off: Off
     send: "Send notifications: ${state}"
     minAmount: "Min. amount: ${state}"
+    resetMinAmount: Reset Min. amount
   openAddress: Open Address
   nextPage: Next »
   prevPage: « Prev
