@@ -171,7 +171,8 @@ module.exports = async (data, meta) => {
 
   const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
     is_deleted: false,
-    notifications: true,
+    'notifications.is_enabled': true,
+    $expr: { $gte: [Number(transaction.value), { $toInt: '$notifications.min_amount' }] },
   })
 
   transaction.sendToChannel = (new Big(transaction.value).gte(MIN_TRANSACTION_AMOUNT))
