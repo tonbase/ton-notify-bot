@@ -1,4 +1,4 @@
-const Big = require('big.js')
+const { Big } = require('./big')
 const formatBigNumberStr = require('./formatBigNumberStr')
 
 module.exports = (str) => {

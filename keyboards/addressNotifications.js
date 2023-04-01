@@ -1,9 +1,11 @@
 const { Markup: m } = require('telegraf')
+const ton = require('../services/ton')
 
 module.exports = (address, i18n) => {
   const { _id, notifications } = address
 
   const { is_enabled: isEnabled, min_amount: minAmout } = notifications
+  const stringAmount = String(minAmout)
   return m.inlineKeyboard(
     [
       m.callbackButton(
@@ -11,9 +13,14 @@ module.exports = (address, i18n) => {
         `notify_${_id}_${isEnabled ? 'off' : 'on'}`,
       ),
       m.callbackButton(
-        i18n.t('buttons.notifications.minAmount', { state: minAmout === '0' ? 'OFF' : `💎 ${minAmout} TON` }),
+        i18n.t(
+          'buttons.notifications.minAmount',
+          {
+            state: stringAmount === '0' ? 'OFF' : `${ton.utils.fromNano(stringAmount)} TON`,
+          },
+        ),
         `notify_min_amout_${_id}`,
-        !isEnabled
+        !isEnabled,
       ),
       m.callbackButton(i18n.t('buttons.backToAddress'), `open_${_id}`),
     ],

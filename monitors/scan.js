@@ -1,7 +1,7 @@
 f = (...args) => console.log(...args)
 j = (obj) => f(JSON.stringify(obj, null, 2))
 
-const Big = require('big.js')
+const { Big } = require('../utils/big')
 const mongoose = require('mongoose')
 
 const config = require('../config')
@@ -22,16 +22,14 @@ const addTransactionToQueue = async (transaction, seqno) => {
     return false
   }
 
-  const comment = message?.msg_data?.text
-  const isDataText = message?.msg_data?.['@type'] === 'msg.dataText'
+  const comment = message?.comment || ''
 
   return transactionProcessor({
     from: message.source,
     to: message.destination,
     value: ton.utils.fromNano(message.value.toString()),
-    comment: comment && isDataText
-      ? new TextDecoder().decode(ton.utils.base64ToBytes(comment))
-      : '',
+    nanoValue: message.value,
+    comment
   }, {
     seqno, hash: message.hash
   })

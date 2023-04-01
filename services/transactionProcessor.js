@@ -1,9 +1,9 @@
 /* eslint-disable no-continue */
 /* eslint-disable no-await-in-loop */
 const { Telegram, Extra } = require('telegraf')
-const Big = require('big.js')
 const LRUCache = require('lru-cache')
 const { promisify } = require('util')
+const { Big } = require('../utils/big')
 const config = require('../config')
 const log = require('../utils/log')
 const i18n = require('../i18n')
@@ -171,7 +171,8 @@ module.exports = async (data, meta) => {
 
   const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
     is_deleted: false,
-    notifications: true,
+    'notifications.is_enabled': true,
+    $expr: { $gte: [transaction.nanoValue, '$notifications.min_amount'] },
   })
 
   transaction.sendToChannel = (new Big(transaction.value).gte(MIN_TRANSACTION_AMOUNT))
