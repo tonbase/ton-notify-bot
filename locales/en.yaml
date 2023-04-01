@@ -67,7 +67,7 @@ list:
 
 buttons:
   notifications:
-    text: Notifications
+    text: "Notifications: ${state}"
     On: ON
     Off: Off
     send: "Send notifications: ${state}"

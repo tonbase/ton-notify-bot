@@ -6,7 +6,7 @@ module.exports = (addressId, notifications, i18n) => {
       m.callbackButton(
         i18n.t('buttons.notifications.resetMinAmount'),
         'reset_min_amount',
-        String(notifications.min_amount) === '0'
+        String(notifications.min_amount) === '0',
       ),
       m.callbackButton(i18n.t('buttons.backToNotifications'), `notify_${addressId}`),
     ],
