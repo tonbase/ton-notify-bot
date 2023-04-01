@@ -10,6 +10,7 @@ module.exports = async (ctx) => {
   const {
     _id, address, tag,
     is_deleted: isDeleted,
+    notifications,
   } = await addressRepository.getOneById(addressId)
 
   if (isDeleted) {
@@ -22,7 +23,7 @@ module.exports = async (ctx) => {
       address,
       formatAddress,
     }),
-    Extra.HTML().webPreview(false).markup(getEditMinAmountKeyboard(_id, ctx.i18n)),
+    Extra.HTML().webPreview(false).markup(getEditMinAmountKeyboard(_id, notifications, ctx.i18n)),
   )
 
   return ctx.scene.enter('editMinAmount', { address_id: addressId })
