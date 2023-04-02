@@ -93,6 +93,20 @@ class AddressRepository {
     )
   }
 
+  updateInclusion(addressId, list) {
+    return AddressModel.updateOne(
+      { _id: addressId },
+      { $set: { 'notifications.inclusion': list } },
+    )
+  }
+
+  clearInclusion(addressId) {
+    return AddressModel.updateOne(
+      { _id: addressId },
+      { $set: { 'notifications.inclusion': [] } },
+    )
+  }
+
   incSendCoinsCounter(addressId, value) {
     return AddressModel.updateOne({ _id: addressId }, { $inc: { 'counters.send_coins': value } })
   }

@@ -5,8 +5,8 @@ module.exports = (addressId, notifications, i18n) => {
     [
       m.callbackButton(
         i18n.t('buttons.notifications.clear'),
-        'clear_exceptions',
-        !notifications.exceptions.length,
+        'clear_inclusion',
+        !notifications.inclusion.length,
       ),
       m.callbackButton(i18n.t('buttons.backToNotifications'), `notify_${addressId}`),
     ],
