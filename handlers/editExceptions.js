@@ -27,9 +27,7 @@ module.exports = async (ctx) => {
   return ctx.replyWithHTML(
     ctx.i18n.t(
       'address.notifications.menu',
-      {
-        exceptions: exceptionsList,
-      },
+      { exceptions: exceptionsList },
     ),
     Extra.HTML()
       .webPreview(false)
