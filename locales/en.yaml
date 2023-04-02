@@ -61,12 +61,12 @@ address:
     exceptionsList: "Current exceptions: ${list}"
     editExceptions: |
       Here you can add exclusions for notifications. Send me words separated by commas to turn off notifications with the payload of transactions.
-      For example: +cashback, +ton.events, -ads.
+      For example: +cashback, -ton.events, -ads.
 
-      ${inclusion}
-      ${exceptions}
+      ${current}
     zeroInclusion: "Inclusion are <b>disabled</b>."
     inclusionList: "Current inclusion: ${list}"
+    currentList: "Current: ${list}"
 
     
 

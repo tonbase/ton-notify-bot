@@ -16,17 +16,20 @@ module.exports = async (ctx) => {
   }
 
   const { exceptions, inclusion } = notifications
-  const exceptionsList = exceptions.length
-    ? ctx.i18n.t('address.notifications.exceptionsList', { list: exceptions.join(', ') })
-    : ctx.i18n.t('address.notifications.zeroExceptions')
 
-  const inclusionList = inclusion.length
-    ? ctx.i18n.t('address.notifications.inclusionList', { list: inclusion.join(', ') })
-    : ctx.i18n.t('address.notifications.zeroInclusion')
+  const totalList = []
+  inclusion.forEach((inclus) => {
+    totalList.push(`+${inclus}`)
+  })
+  exceptions.forEach((exception) => {
+    totalList.push(`-${exception}`)
+  })
 
   await ctx.editMessageText(
     ctx.i18n.t('address.notifications.editExceptions', {
-      inclusion: inclusionList, exceptions: exceptionsList,
+      current: totalList.length
+        ? ctx.i18n.t('address.notifications.currentList', { list: totalList.join(', ') })
+        : ctx.i18n.t('address.notifications.zeroExceptions'),
     }),
     Extra.HTML()
       .webPreview(false)
