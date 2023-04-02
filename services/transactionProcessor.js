@@ -172,26 +172,28 @@ module.exports = async (data, meta) => {
   const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
     is_deleted: false,
     'notifications.is_enabled': true,
-    'notifications.exceptions': { $nin: [transaction.comment] },
-    $and: [
-      {
-        $expr: {
-          $gt: [
-            { $size: { $ifNull: ['$notifications.inclusion', []] } },
-            0,
-          ],
-        },
-      },
-      { 'notifications.inclusion': { $in: [transaction.comment] } },
-    ],
     $expr: { $gte: [transaction.nanoValue, '$notifications.min_amount'] },
+  })
+
+  const filteredAddresses = addresses.filter((v) => {
+    const { exceptions, inclusion } = v.notifications
+
+    if (exceptions.includes(transaction.comment)) {
+      return false
+    }
+
+    if (inclusion.length) {
+      return inclusion.includes(transaction.comment)
+    }
+
+    return true
   })
 
   transaction.sendToChannel = (new Big(transaction.value).gte(MIN_TRANSACTION_AMOUNT))
 
-  if (addresses.length || transaction.sendToChannel) {
-    log.info(`Sending notify to users(${addresses.length}) or to channel(${transaction.sendToChannel ? '+' : '-'})`)
-    await sendTransactionMessage(addresses, transaction, transactionSeqno)
+  if (filteredAddresses.length || transaction.sendToChannel) {
+    log.info(`Sending notify to users(${filteredAddresses.length}) or to channel(${transaction.sendToChannel ? '+' : '-'})`)
+    await sendTransactionMessage(filteredAddresses, transaction, transactionSeqno)
   }
 
   await timeout(500)
