@@ -4,9 +4,9 @@ const ton = require('../services/ton')
 module.exports = (address, i18n) => {
   const { _id, notifications } = address
 
-  const { is_enabled: isEnabled, min_amount: minAmout, exceptions } = notifications
+  const { is_enabled: isEnabled, min_amount: minAmout, exceptions, inclusion } = notifications
 
-  const exceptionsButton = exceptions.length
+  const exceptionsButton = exceptions.length || inclusion.length
     ? i18n.t('buttons.notifications.editExceptions')
     : i18n.t('buttons.notifications.addExceptions')
 

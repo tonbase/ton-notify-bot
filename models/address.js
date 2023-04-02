@@ -13,10 +13,8 @@ const addressSchema = new mongoose.Schema(
         type: schemaTypes.Decimal128,
         default: 0,
       },
-      exceptions: {
-        type: [String],
-        default: [],
-      },
+      exceptions: { type: [String], default: [] },
+      inclusion: { type: [String], default: [] },
     },
     counters: {
       send_coins: { type: Number, default: 0 },

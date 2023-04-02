@@ -79,17 +79,27 @@ class AddressRepository {
     )
   }
 
-  updateExceptions(addressId, list) {
+  updateExceptions(addressId, exceptions, inclusion) {
     return AddressModel.updateOne(
       { _id: addressId },
-      { $set: { 'notifications.exceptions': list } },
+      {
+        $set: {
+          'notifications.exceptions': exceptions,
+          'notifications.inclusion': inclusion,
+        },
+      },
     )
   }
 
   clearExceptions(addressId) {
     return AddressModel.updateOne(
       { _id: addressId },
-      { $set: { 'notifications.exceptions': [] } },
+      {
+        $set: {
+          'notifications.exceptions': [],
+          'notifications.inclusion': [],
+        },
+      },
     )
   }
 

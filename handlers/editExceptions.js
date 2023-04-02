@@ -11,10 +11,31 @@ module.exports = async (ctx) => {
       (v) => v.trim().replace(/\n/g, ''),
     )
 
-  const listOfExceptions = [...new Set(rawListOfExceptions)]
+  const fullListOfExceptions = [...new Set(rawListOfExceptions)]
+
+  const rawExceptions = []
+  const rawInclusion = []
+
+  const regexClearType = /^[+-]/;
+  fullListOfExceptions.forEach((rawText) => {
+    const textType = /^-/.test(rawText) ? '-' : '+'
+    const text = rawText.replace(regexClearType, '').trim()
+
+    if (textType === '-') {
+      rawExceptions.push(text)
+    } else {
+      rawInclusion.push(text)
+    }
+  })
+
+  const exceptions = [...new Set(rawExceptions)]
+  const inclusion = [...new Set(rawInclusion)]
 
   const addressRepository = new AddressRepository()
-  await addressRepository.updateExceptions(addressId, listOfExceptions)
+  await addressRepository.updateExceptions(
+    addressId,
+    exceptions, inclusion,
+  )
 
   const { _id, notifications } = await addressRepository.getOneById(addressId)
 

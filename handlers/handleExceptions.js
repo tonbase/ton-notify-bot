@@ -15,14 +15,18 @@ module.exports = async (ctx) => {
     return ctx.answerCbQuery()
   }
 
-  const { exceptions } = notifications
-  const state = exceptions.length
+  const { exceptions, inclusion } = notifications
+  const exceptionsList = exceptions.length
     ? ctx.i18n.t('address.notifications.exceptionsList', { list: exceptions.join(', ') })
     : ctx.i18n.t('address.notifications.zeroExceptions')
 
+  const inclusionList = inclusion.length
+    ? ctx.i18n.t('address.notifications.inclusionList', { list: inclusion.join(', ') })
+    : ctx.i18n.t('address.notifications.zeroInclusion')
+
   await ctx.editMessageText(
     ctx.i18n.t('address.notifications.editExceptions', {
-      state,
+      inclusion: inclusionList, exceptions: exceptionsList,
     }),
     Extra.HTML()
       .webPreview(false)
