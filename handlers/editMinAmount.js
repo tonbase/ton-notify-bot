@@ -3,6 +3,7 @@ const { Big } = require('../utils/big')
 const AddressRepository = require('../repositories/address')
 const getBackToNotificationsKeyboard = require('../keyboards/backToNotifications')
 const getAddressNotificationsKeyboard = require('../keyboards/addressNotifications')
+const getNotificationsMenu = require('../utils/formatNotificationsMenu')
 const ton = require('../services/ton')
 const log = require('../utils/log')
 
@@ -29,7 +30,7 @@ module.exports = async (ctx) => {
     ctx.scene.leave()
 
     return ctx.replyWithHTML(
-      ctx.i18n.t('address.notifications.menu'),
+      getNotificationsMenu(notifications, ctx.i18n),
       Extra.HTML()
         .webPreview(false)
         .markup(getAddressNotificationsKeyboard({ _id, notifications }, ctx.i18n)),

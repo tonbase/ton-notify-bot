@@ -79,6 +79,30 @@ class AddressRepository {
     )
   }
 
+  updateExceptions(addressId, exceptions, inclusion) {
+    return AddressModel.updateOne(
+      { _id: addressId },
+      {
+        $set: {
+          'notifications.exceptions': exceptions,
+          'notifications.inclusion': inclusion,
+        },
+      },
+    )
+  }
+
+  clearExceptions(addressId) {
+    return AddressModel.updateOne(
+      { _id: addressId },
+      {
+        $set: {
+          'notifications.exceptions': [],
+          'notifications.inclusion': [],
+        },
+      },
+    )
+  }
+
   incSendCoinsCounter(addressId, value) {
     return AddressModel.updateOne({ _id: addressId }, { $inc: { 'counters.send_coins': value } })
   }

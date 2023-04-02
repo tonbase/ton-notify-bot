@@ -172,6 +172,11 @@ module.exports = async (data, meta) => {
   const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
     is_deleted: false,
     'notifications.is_enabled': true,
+    'notifications.exceptions': { $nin: [transaction.comment] },
+    $and: [
+      { $expr: { $gt: [{ $size: '$notifications.inclusion' }, 0] } },
+      { 'notifications.inclusion': { $in: [transaction.comment] } },
+    ],
     $expr: { $gte: [transaction.nanoValue, '$notifications.min_amount'] },
   })
 
