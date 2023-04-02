@@ -11,7 +11,6 @@ module.exports = async (ctx) => {
     )
 
   const listOfExceptions = [...new Set(rawListOfExceptions)]
-  console.log(listOfExceptions)
 
   const addressRepository = new AddressRepository()
   await addressRepository.updateExceptions(addressId, listOfExceptions)
