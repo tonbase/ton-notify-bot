@@ -174,7 +174,14 @@ module.exports = async (data, meta) => {
     'notifications.is_enabled': true,
     'notifications.exceptions': { $nin: [transaction.comment] },
     $and: [
-      { $expr: { $gt: [{ $size: '$notifications.inclusion' }, 0] } },
+      {
+        $expr: {
+          $gt: [
+            { $size: { $ifNull: ['$notifications.inclusion', []] } },
+            0,
+          ],
+        },
+      },
       { 'notifications.inclusion': { $in: [transaction.comment] } },
     ],
     $expr: { $gte: [transaction.nanoValue, '$notifications.min_amount'] },
