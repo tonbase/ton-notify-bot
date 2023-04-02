@@ -48,12 +48,22 @@ address:
   notifications:
     menu: |
       Here you can set notifications.
+
+      ${exceptions}
     invalid: |
       Invalid number.
     editMinAmount: |
       Send me a minimal amount for this address: ${tag} <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>
 
       For example: <i>0.1</i> and etc.
+    zeroExceptions: "Exceptions are <b>disabled</b>."
+    exceptionsList: "Current exceptions: ${list}"
+    editExceptions: |
+      Here you can add exclusions for notifications. Send me words separated by commas to turn off notifications with the payload of transactions. For example, cashback.
+
+      ${state}
+
+    
 
 list:
   chooseAddress: |
@@ -73,6 +83,9 @@ buttons:
     send: "Send notifications: ${state}"
     minAmount: "Min. amount: ${state}"
     resetMinAmount: Reset
+    addExceptions: Add exceptions
+    editExceptions: Edit exceptions
+    clearExceptions: Clear
   openAddress: Open Address
   nextPage: Next »
   prevPage: « Prev

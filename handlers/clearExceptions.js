@@ -3,12 +3,16 @@ const AddressRepository = require('../repositories/address')
 const getAddressNotificationsKeyboard = require('../keyboards/addressNotifications')
 
 module.exports = async (ctx) => {
-  const [addressId] = ctx.match
+  const addressId = ctx.scene.state.address_id
 
   const addressRepository = new AddressRepository()
-  const address = await addressRepository.getOneById(addressId)
+  await addressRepository.clearExceptions(addressId)
 
-  const { exceptions } = address.notifications
+  const { _id, notifications } = await addressRepository.getOneById(addressId)
+
+  ctx.scene.leave()
+
+  const { exceptions } = notifications
   const exceptionsList = exceptions.length
     ? ctx.i18n.t('address.notifications.exceptionsList', { list: exceptions.join(', ') })
     : ctx.i18n.t('address.notifications.zeroExceptions')
@@ -20,6 +24,6 @@ module.exports = async (ctx) => {
     ),
     Extra.HTML()
       .webPreview(false)
-      .markup(getAddressNotificationsKeyboard(address, ctx.i18n)),
+      .markup(getAddressNotificationsKeyboard({ _id, notifications }, ctx.i18n)),
   )
 }
