@@ -21,7 +21,9 @@ module.exports = async (ctx) => {
     : ctx.i18n.t('address.notifications.zeroExceptions')
 
   await ctx.editMessageText(
-    ctx.i18n.t('address.notifications.editExceptions', { state }),
+    ctx.i18n.t('address.notifications.editExceptions', {
+      state,
+    }),
     Extra.HTML()
       .webPreview(false)
       .markup(getEditExceptionsKeyboard(_id, notifications, ctx.i18n)),

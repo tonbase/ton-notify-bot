@@ -49,7 +49,6 @@ address:
     menu: |
       Here you can set notifications.
 
-      ${inclusion}
       ${exceptions}
     invalid: |
       Invalid number.
@@ -61,12 +60,6 @@ address:
     exceptionsList: "Current exceptions: ${list}"
     editExceptions: |
       Here you can add exclusions for notifications. Send me words separated by commas to turn off notifications with the payload of transactions. For example, cashback.
-
-      ${state}
-    zeroInclusion: "Inclusion are <b>disabled</b>."
-    inclusionList: "Current inclusion: ${list}"
-    editInclusion: |
-      Here you can add inclusion for notifications. Send me comma separated words to notify only with transaction payload. For example, cashback.
 
       ${state}
 
@@ -92,9 +85,7 @@ buttons:
     resetMinAmount: Reset
     addExceptions: Add exceptions
     editExceptions: Edit exceptions
-    addInclusion: Add inclusion
-    editInclusion: Edit inclusion
-    clear: Clear
+    clearExceptions: Clear
   openAddress: Open Address
   nextPage: Next »
   prevPage: « Prev

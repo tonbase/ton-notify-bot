@@ -8,7 +8,6 @@ const log = require('./utils/log')
 const editTagScene = require('./scenes/editTag')
 const editMinAmountScene = require('./scenes/editMinAmount')
 const editExceptions = require('./scenes/editExceptions')
-const editInclusion = require('./scenes/editInclusion')
 
 const sendWelcome = require('./handlers/sendWelcome')
 const addAddress = require('./handlers/addAddress')
@@ -18,7 +17,6 @@ const openAddress = require('./handlers/openAddress')
 const handleEdit = require('./handlers/handleEdit')
 const handleMinAmount = require('./handlers/handleMinAmount')
 const handleExceptions = require('./handlers/handleExceptions')
-const handleInclusion = require('./handlers/handleInclusion')
 const openAddressNotifications = require('./handlers/openAddressNotifications')
 const turnNotifications = require('./handlers/turnNotifications')
 const deleteAddress = require('./handlers/deleteAddress')
@@ -33,7 +31,7 @@ const bot = new Telegraf(config.get('bot.token'))
 
 const payloadRegex = /^(\w|-){48}/
 
-const stage = new Stage([editTagScene, editMinAmountScene, editExceptions, editInclusion])
+const stage = new Stage([editTagScene, editMinAmountScene, editExceptions])
 
 stage.start(
   Composer.optional(
@@ -67,8 +65,6 @@ bot.action(/(?<=^list_)\d+/, changeListPage)
 bot.action(/(?<=^open_).+/, openAddress)
 
 bot.action(/(?<=^edit_).+/, handleEdit)
-
-bot.action(/(?<=^notify_inclusion_).+$/, handleInclusion)
 
 bot.action(/(?<=^notify_exceptions_).+$/, handleExceptions)
 

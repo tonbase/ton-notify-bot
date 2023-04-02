@@ -4,18 +4,11 @@ const ton = require('../services/ton')
 module.exports = (address, i18n) => {
   const { _id, notifications } = address
 
-  const {
-    is_enabled: isEnabled, min_amount: minAmout,
-    exceptions, inclusion,
-  } = notifications
+  const { is_enabled: isEnabled, min_amount: minAmout, exceptions } = notifications
 
   const exceptionsButton = exceptions.length
     ? i18n.t('buttons.notifications.editExceptions')
     : i18n.t('buttons.notifications.addExceptions')
-
-  const inclusionButton = inclusion.length
-    ? i18n.t('buttons.notifications.editInclusion')
-    : i18n.t('buttons.notifications.addInclusion')
 
   const stringAmount = String(minAmout)
   return m.inlineKeyboard(
@@ -37,11 +30,6 @@ module.exports = (address, i18n) => {
       m.callbackButton(
         exceptionsButton,
         `notify_exceptions_${_id}`,
-        !isEnabled,
-      ),
-      m.callbackButton(
-        inclusionButton,
-        `notify_inclusion_${_id}`,
         !isEnabled,
       ),
       m.callbackButton(i18n.t('buttons.backToAddress'), `open_${_id}`),
