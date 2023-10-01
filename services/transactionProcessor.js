@@ -18,6 +18,7 @@ const formatTransactionPrice = require('../utils/formatTransactionPrice')
 const escapeHTML = require('../utils/escapeHTML')
 const getTitleByAddress = require('../monitors/addresses')
 const excludedAddresses = require('../data/excludedAddresses.json')
+const getPools = require('../monitors/pool')
 
 const timeout = promisify(setTimeout)
 
@@ -47,7 +48,10 @@ async function getBalance(address, seqno) {
   return balance
 }
 
-async function sendTransactionMessage(addresses, transaction, transactionSeqno) {
+async function sendTransactionMessage(addresses, transaction, transactionMeta) {
+  const transactionSeqno = transactionMeta.seqno
+  const transactionHash = transactionMeta.hash
+
   const fromBalance = await getBalance(transaction.from, transactionSeqno)
   const toBalance = await getBalance(transaction.to, transactionSeqno)
 
@@ -107,6 +111,7 @@ async function sendTransactionMessage(addresses, transaction, transactionSeqno) 
           transactionPrice &&
           i18n.t(user.language, 'transaction.price', { value: transactionPrice }),
         comment: comment && i18n.t(user.language, 'transaction.comment', { text: comment }),
+        hash: transactionHash,
       })
 
       await telegram.sendMessage(userId, rawMessageText, Extra.HTML().webPreview(false))
@@ -138,6 +143,7 @@ async function sendTransactionMessage(addresses, transaction, transactionSeqno) 
       value: formattedTransactionValue,
       price: transactionPrice && i18n.t('en', 'transaction.price', { value: transactionPrice }),
       comment: comment && i18n.t('en', 'transaction.comment', { text: comment }),
+      hash: transactionHash,
     })
 
     await telegram.sendMessage(
@@ -148,6 +154,26 @@ async function sendTransactionMessage(addresses, transaction, transactionSeqno) 
       log.error(`Transaction notification sending error: ${err}`)
     })
   }
+}
+
+function checkIsPoolTransaction(transaction) {
+  if (!transaction.out_msgs.length) {
+    return false
+  }
+
+  const inDestinationAddress = transaction.in_msg?.destination
+  const outSourceAddress = transaction.out_msgs[0].source
+
+  if (!inDestinationAddress || !outSourceAddress) {
+    return false
+  }
+
+  const pools = getPools()
+
+  const isDestination = pools.find((pool) => pool.address === inDestinationAddress)
+  const isSource = pools.find((pool) => pool.address === outSourceAddress)
+
+  return isDestination && isSource
 }
 
 module.exports = async (data, meta) => {
@@ -161,6 +187,11 @@ module.exports = async (data, meta) => {
 
   if (excludedAddresses.includes(transaction.from) || excludedAddresses.includes(transaction.to)) {
     log.info(`Ignored ${excludedAddresses.includes(transaction.from) ? transaction.fromDefaultTag : transaction.toDefaultTag}`)
+    return false
+  }
+
+  if (checkIsPoolTransaction(transaction.raw)) {
+    log.info('Ignored pool transaction')
     return false
   }
 
@@ -193,7 +224,14 @@ module.exports = async (data, meta) => {
 
   if (filteredAddresses.length || transaction.sendToChannel) {
     log.info(`Sending notify to users(${filteredAddresses.length}) or to channel(${transaction.sendToChannel ? '+' : '-'})`)
-    await sendTransactionMessage(filteredAddresses, transaction, transactionSeqno)
+    await sendTransactionMessage(
+      filteredAddresses,
+      transaction,
+      {
+        hash: transactionHash,
+        seqno: transactionSeqno,
+      },
+    )
   }
 
   await timeout(500)
