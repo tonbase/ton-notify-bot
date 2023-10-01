@@ -167,7 +167,7 @@ function checkIsPoolTransaction(transaction) {
     return true
   }
 
-  const outSourceAddress = transaction.out_msgs[0].source
+  const outSourceAddress = transaction.out_msgs[0]?.source
 
   if (!inDestinationAddress || !outSourceAddress) {
     return false
