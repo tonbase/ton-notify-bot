@@ -157,15 +157,19 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
 }
 
 function checkIsPoolTransaction(transaction) {
-  const fromAddress = transaction.from
-  const toAddress = transaction.to
+  if (!transaction.out.msg.length) {
+    return
+  }
+
+  const inDestinationAddress = transaction.in_msg.destination
+  const outSourceAddress = transaction.out_msgs[0].source
 
   const pools = getPools()
 
-  const fromIsPool = pools.find((pool) => pool.name === fromAddress)
-  const toIsPool = pools.find((pool) => pool.name === toAddress)
+  const isDestination = pools.find((pool) => pool.address === inDestinationAddress)
+  const isSource = pools.find((pool) => pool.address === outSourceAddress)
 
-  return fromIsPool && toIsPool
+  return isDestination && isSource
 }
 
 module.exports = async (data, meta) => {
@@ -182,8 +186,8 @@ module.exports = async (data, meta) => {
     return false
   }
 
-  if (checkIsPoolTransaction(transaction)) {
-    log.info(`Ignored pool transaction, from: ${transaction.from} to ${transaction.to}`)
+  if (checkIsPoolTransaction(transaction.raw)) {
+    log.info('Ignored pool transaction')
     return false
   }
 
