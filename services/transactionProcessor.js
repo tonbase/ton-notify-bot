@@ -18,6 +18,7 @@ const formatTransactionPrice = require('../utils/formatTransactionPrice')
 const escapeHTML = require('../utils/escapeHTML')
 const getTitleByAddress = require('../monitors/addresses')
 const excludedAddresses = require('../data/excludedAddresses.json')
+const getPools = require('../monitors/pool')
 
 const timeout = promisify(setTimeout)
 
@@ -154,6 +155,18 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
   }
 }
 
+function checkIsPoolTransaction(transaction) {
+  const fromAddress = transaction.from
+  const toAddress = transaction.to
+
+  const pools = getPools()
+
+  const fromIsPool = pools.find((pool) => pool.name === fromAddress)
+  const toIsPool = pools.find((pool) => pool.name === toAddress)
+
+  return fromIsPool && toIsPool
+}
+
 module.exports = async (data, meta) => {
   const transaction = data
   const transactionHash = meta.hash
@@ -165,6 +178,11 @@ module.exports = async (data, meta) => {
 
   if (excludedAddresses.includes(transaction.from) || excludedAddresses.includes(transaction.to)) {
     log.info(`Ignored ${excludedAddresses.includes(transaction.from) ? transaction.fromDefaultTag : transaction.toDefaultTag}`)
+    return false
+  }
+
+  if (checkIsPoolTransaction(transaction)) {
+    log.info(`Ignored pool transaction, from: ${transaction.from} to ${transaction.to}`)
     return false
   }
 

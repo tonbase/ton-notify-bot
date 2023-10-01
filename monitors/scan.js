@@ -29,7 +29,8 @@ const addTransactionToQueue = async (transaction, seqno) => {
     to: message.destination,
     value: ton.utils.fromNano(message.value.toString()),
     nanoValue: message.value,
-    comment
+    comment,
+    raw: transaction
   }, {
     seqno, hash: message.hash
   })
