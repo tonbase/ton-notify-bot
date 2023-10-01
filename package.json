@@ -4,7 +4,8 @@
   "description": "🚀 The bot can notify users about new events of TON addresses.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "nodemon -V -L index.js"
   },
   "repository": {
     "type": "git",
