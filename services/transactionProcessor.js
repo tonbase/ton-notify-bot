@@ -47,7 +47,10 @@ async function getBalance(address, seqno) {
   return balance
 }
 
-async function sendTransactionMessage(addresses, transaction, transactionSeqno) {
+async function sendTransactionMessage(addresses, transaction, transactionMeta) {
+  const transactionSeqno = transactionMeta.seqno
+  const transactionHash = transactionMeta.hash
+
   const fromBalance = await getBalance(transaction.from, transactionSeqno)
   const toBalance = await getBalance(transaction.to, transactionSeqno)
 
@@ -138,6 +141,7 @@ async function sendTransactionMessage(addresses, transaction, transactionSeqno) 
       value: formattedTransactionValue,
       price: transactionPrice && i18n.t('en', 'transaction.price', { value: transactionPrice }),
       comment: comment && i18n.t('en', 'transaction.comment', { text: comment }),
+      hash: transactionHash,
     })
 
     await telegram.sendMessage(
@@ -193,7 +197,14 @@ module.exports = async (data, meta) => {
 
   if (filteredAddresses.length || transaction.sendToChannel) {
     log.info(`Sending notify to users(${filteredAddresses.length}) or to channel(${transaction.sendToChannel ? '+' : '-'})`)
-    await sendTransactionMessage(filteredAddresses, transaction, transactionSeqno)
+    await sendTransactionMessage(
+      filteredAddresses,
+      transaction,
+      {
+        hash: transactionHash,
+        seqno: transactionSeqno,
+      },
+    )
   }
 
   await timeout(500)
