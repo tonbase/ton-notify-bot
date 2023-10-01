@@ -157,20 +157,22 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
 }
 
 function checkIsPoolTransaction(transaction) {
-  if (!transaction.out_msgs.length) {
-    return false
+  const inDestinationAddress = transaction.in_msg?.destination
+
+  const pools = getPools()
+
+  const isDestination = pools.find((pool) => pool.address === inDestinationAddress)
+
+  if(isDestination && transaction.out_msgs.length === 0) {
+    return true
   }
 
-  const inDestinationAddress = transaction.in_msg?.destination
   const outSourceAddress = transaction.out_msgs[0].source
 
   if (!inDestinationAddress || !outSourceAddress) {
     return false
   }
-
-  const pools = getPools()
-
-  const isDestination = pools.find((pool) => pool.address === inDestinationAddress)
+  
   const isSource = pools.find((pool) => pool.address === outSourceAddress)
 
   return isDestination && isSource
