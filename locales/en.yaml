@@ -9,7 +9,7 @@ welcome: |
 
 transaction:
   message: |
-    🏷 ${type} 👤 <a href="https://tonscan.org/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonscan.org/address/${to}">${toTag}</a>${toBalance}
+    <a href="https://tonscan.org/tx/${hash}">🏷</a> ${type} 👤 <a href="https://tonscan.org/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonscan.org/address/${to}">${toTag}</a>${toBalance}
 
     💎 ${value} TON${price}
 

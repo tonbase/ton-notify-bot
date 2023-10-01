@@ -111,6 +111,7 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
           transactionPrice &&
           i18n.t(user.language, 'transaction.price', { value: transactionPrice }),
         comment: comment && i18n.t(user.language, 'transaction.comment', { text: comment }),
+        hash: transactionHash,
       })
 
       await telegram.sendMessage(userId, rawMessageText, Extra.HTML().webPreview(false))
