@@ -157,7 +157,7 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
 }
 
 function checkIsPoolTransaction(transaction) {
-  if (!transaction.out.msg.length) {
+  if (!transaction.out_msgs.length) {
     return false
   }
 
