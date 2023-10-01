@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon -V -L index.js"
+    "dev:bot": "nodemon -V -L index.js",
+    "dev:scan": "nodemon -V -L monitors/scan.js",
   },
   "repository": {
     "type": "git",
