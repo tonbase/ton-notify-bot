@@ -158,11 +158,15 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
 
 function checkIsPoolTransaction(transaction) {
   if (!transaction.out.msg.length) {
-    return
+    return false
   }
 
-  const inDestinationAddress = transaction.in_msg.destination
+  const inDestinationAddress = transaction.in_msg?.destination
   const outSourceAddress = transaction.out_msgs[0].source
+
+  if (!inDestinationAddress || !outSourceAddress) {
+    return false
+  }
 
   const pools = getPools()
 
