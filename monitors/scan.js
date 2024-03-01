@@ -78,8 +78,8 @@ const scanAddresses = async () => {
       transaction.address = new ton.utils.Address(transaction.account)
         .toString(true, true, true, false)
 
-      log.info(`Adding transaction #${Number(index) + 1} ${transaction
-        .transaction_type} to queue (${transaction.address})`)
+      // log.info(`Adding transaction #${Number(index) + 1} ${transaction
+      //   .transaction_type} to queue (${transaction.address})`)
 
       addTransactionToQueue(transaction, seqno)
     }
