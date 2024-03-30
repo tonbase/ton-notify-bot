@@ -19,6 +19,7 @@ const escapeHTML = require('../utils/escapeHTML')
 const getTitleByAddress = require('../monitors/addresses')
 const excludedAddresses = require('../data/excludedAddresses.json')
 const getPools = require('../monitors/pool')
+const getNoneBouncedAddress = require('../utils/getNoneBouncedAddress')
 
 const timeout = promisify(setTimeout)
 
@@ -201,11 +202,17 @@ module.exports = async (data, meta) => {
     return false
   }
   cache.set(transactionHash, data)
-
-  const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
+  const noneBouncedAddressFrom = getNoneBouncedAddress(transaction.from)
+  const noneBouncedAddressTo = getNoneBouncedAddress(transaction.to)
+  console.log(noneBouncedAddressFrom)
+  if (noneBouncedAddressFrom==='UQDqd9Z85mTsB_B1KjajAjmzHURoYb1x1Ja2IwMD7ZRhYFWq') {
+    console.log('UQDqd9Z85mTsB_B1KjajAjmzHURoYb1x1Ja2IwMD7ZRhYFWq')
+  }
+  const addresses =  await addressRepository.getByAddress(
+      [transaction.from, transaction.to, noneBouncedAddressFrom, noneBouncedAddressTo], {
     is_deleted: false,
     'notifications.is_enabled': true,
-    $expr: { $gte: [transaction.nanoValue, '$notifications.min_amount'] },
+    $expr: { $gte: [transaction.nanoValue, '$notificatioLns.min_amount'] },
   })
 
   const filteredAddresses = addresses.filter((v) => {
