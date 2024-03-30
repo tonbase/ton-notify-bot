@@ -19,7 +19,7 @@ const escapeHTML = require('../utils/escapeHTML')
 const getTitleByAddress = require('../monitors/addresses')
 const excludedAddresses = require('../data/excludedAddresses.json')
 const getPools = require('../monitors/pool')
-const getNoneBouncedAddress = require('../utils/getNoneBouncedAddress')
+const getNonBouncedAddress = require('../utils/getNonBouncedAddress')
 
 const timeout = promisify(setTimeout)
 
@@ -202,8 +202,8 @@ module.exports = async (data, meta) => {
     return false
   }
   cache.set(transactionHash, data)
-  const noneBouncedAddressFrom = getNoneBouncedAddress(transaction.from)
-  const noneBouncedAddressTo = getNoneBouncedAddress(transaction.to)
+  const noneBouncedAddressFrom = getNonBouncedAddress(transaction.from)
+  const noneBouncedAddressTo = getNonBouncedAddress(transaction.to)
   const addresses =  await addressRepository.getByAddress(
       [transaction.from, transaction.to, noneBouncedAddressFrom, noneBouncedAddressTo], {
     is_deleted: false,
