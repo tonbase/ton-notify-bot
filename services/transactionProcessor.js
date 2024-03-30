@@ -204,10 +204,6 @@ module.exports = async (data, meta) => {
   cache.set(transactionHash, data)
   const noneBouncedAddressFrom = getNoneBouncedAddress(transaction.from)
   const noneBouncedAddressTo = getNoneBouncedAddress(transaction.to)
-  console.log(noneBouncedAddressFrom)
-  if (noneBouncedAddressFrom==='UQDqd9Z85mTsB_B1KjajAjmzHURoYb1x1Ja2IwMD7ZRhYFWq') {
-    console.log('UQDqd9Z85mTsB_B1KjajAjmzHURoYb1x1Ja2IwMD7ZRhYFWq')
-  }
   const addresses =  await addressRepository.getByAddress(
       [transaction.from, transaction.to, noneBouncedAddressFrom, noneBouncedAddressTo], {
     is_deleted: false,
