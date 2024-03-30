@@ -208,7 +208,7 @@ module.exports = async (data, meta) => {
       [transaction.from, transaction.to, noneBouncedAddressFrom, noneBouncedAddressTo], {
     is_deleted: false,
     'notifications.is_enabled': true,
-    $expr: { $gte: [transaction.nanoValue, '$notificatioLns.min_amount'] },
+    $expr: { $gte: [transaction.nanoValue, '$notifications.min_amount'] },
   })
 
   const filteredAddresses = addresses.filter((v) => {
