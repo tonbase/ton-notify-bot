@@ -173,7 +173,7 @@ function checkIsPoolTransaction(transaction) {
   if (!inDestinationAddress || !outSourceAddress) {
     return false
   }
-  
+
   const isSource = pools.find((pool) => pool.address === outSourceAddress)
 
   return isDestination && isSource
@@ -202,10 +202,10 @@ module.exports = async (data, meta) => {
     return false
   }
   cache.set(transactionHash, data)
-  const noneBouncedAddressFrom = getNonBounceAddress(transaction.from)
-  const noneBouncedAddressTo = getNonBounceAddress(transaction.to)
+  const nonBounceAddressFrom = getNonBounceAddress(transaction.from)
+  const nonBounceAddressTo = getNonBounceAddress(transaction.to)
   const addresses =  await addressRepository.getByAddress(
-      [transaction.from, transaction.to, noneBouncedAddressFrom, noneBouncedAddressTo], {
+      [nonBounceAddressFrom, nonBounceAddressTo, transaction.from, transaction.to], {
     is_deleted: false,
     'notifications.is_enabled': true,
     $expr: { $gte: [transaction.nanoValue, '$notifications.min_amount'] },
