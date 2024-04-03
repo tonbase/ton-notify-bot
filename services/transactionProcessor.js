@@ -19,6 +19,7 @@ const excludedAddresses = require('../data/excludedAddresses.json')
 const getPools = require('../monitors/pool')
 const getNonBounceAddress = require('../utils/getNonBounceAddress')
 const getTagByAddress = require('../utils/getTagByAddress')
+const isNonBounceAddress = require('../utils/isNonBounceAddress')
 
 const timeout = promisify(setTimeout)
 
@@ -90,8 +91,6 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
         user.language,
         address === transaction.from ? 'transaction.send' : 'transaction.receive',
       )
-
-      const isNonBounceAddress = (address) => address ? !new ton.utils.Address(address).isBounceable : false
 
       const fromTag = !!from?.tag ? from.tag : getTagByAddress(isNonBounceAddress(from?.address) ? transaction.fromNonBounce : transaction.from)
       const toTag = !!to?.tag ? to.tag :  getTagByAddress(isNonBounceAddress(to?.address) ? transaction.toNonBounce : transaction.to)
