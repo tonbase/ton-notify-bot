@@ -19,7 +19,7 @@ const excludedAddresses = require('../data/excludedAddresses.json')
 const getPools = require('../monitors/pool')
 const getNonBounceAddress = require('../utils/getNonBounceAddress')
 const getTagByAddress = require('../utils/getTagByAddress')
-const isNonBounceAddress = require('../utils/isNonBounceAddress')
+const getWalletInformation = require('../utils/getWalletInformation')
 
 const timeout = promisify(setTimeout)
 
@@ -92,8 +92,19 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
         address === transaction.from ? 'transaction.send' : 'transaction.receive',
       )
 
-      const fromTag = !!from?.tag ? from.tag : getTagByAddress(isNonBounceAddress(from?.address) ? transaction.fromNonBounce : transaction.from)
-      const toTag = !!to?.tag ? to.tag :  getTagByAddress(isNonBounceAddress(to?.address) ? transaction.toNonBounce : transaction.to)
+
+      let fromTag = from?.tag
+      let toTag = to?.tag
+
+      if (!fromTag) {
+        const { wallet: isWalletFrom } = await getWalletInformation(transaction.from)
+        fromTag = getTagByAddress(isWalletFrom ? transaction.fromNonBounce : transaction.from)
+      }
+
+      if(!toTag){
+        const { wallet: isWalletTo } = await getWalletInformation(transaction.to)
+        toTag = getTagByAddress(isWalletTo ? transaction.toNonBounce : transaction.to)
+      }
 
       const rawMessageText = i18n.t(user.language, 'transaction.message', {
         type,
