@@ -97,13 +97,13 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
       let toTag = to?.tag
 
       if (!fromTag) {
-        const { wallet: isWalletFrom } = await getWalletInformation(transaction.from)
-        fromTag = getTagByAddress(isWalletFrom ? transaction.fromNonBounce : transaction.from)
+        const { wallet } = await getWalletInformation(transaction.from)
+        fromTag = getTagByAddress(wallet ? transaction.fromNonBounce : transaction.from)
       }
 
       if(!toTag){
-        const { wallet: isWalletTo } = await getWalletInformation(transaction.to)
-        toTag = getTagByAddress(isWalletTo ? transaction.toNonBounce : transaction.to)
+        const { wallet } = await getWalletInformation(transaction.to)
+        toTag = getTagByAddress(wallet ? transaction.toNonBounce : transaction.to)
       }
 
       const rawMessageText = i18n.t(user.language, 'transaction.message', {
