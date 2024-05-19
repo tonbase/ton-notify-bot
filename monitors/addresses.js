@@ -7,7 +7,7 @@ const knownAccounts = {}
 
 const updateAddresses = async () => {
   try {
-    const { data } = await axios.get('https://catchain.github.io/tonscan/src/addrbook.json')
+    const { data } = await axios.get('https://address-book.tonscan.org/addresses.json')
 
     for (const adr in data) {
       const address = data[adr]
