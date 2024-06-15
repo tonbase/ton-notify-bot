@@ -172,7 +172,7 @@ function checkIsPoolTransaction(transaction) {
   if (!inDestinationAddress || !outSourceAddress) {
     return false
   }
-  
+
   const isSource = pools.find((pool) => pool.address === outSourceAddress)
 
   return isDestination && isSource
@@ -225,7 +225,7 @@ module.exports = async (data, meta) => {
   transaction.sendToChannel = (new Big(transaction.value).gte(MIN_TRANSACTION_AMOUNT))
 
   if (filteredAddresses.length || transaction.sendToChannel) {
-    log.info(`Sending notify to users(${filteredAddresses.length}) or to channel(${transaction.sendToChannel ? '+' : '-'})`)
+    // log.info(`Sending notify to users(${filteredAddresses.length}) or to channel(${transaction.sendToChannel ? '+' : '-'})`)
     await sendTransactionMessage(
       filteredAddresses,
       transaction,
