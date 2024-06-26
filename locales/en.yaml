@@ -9,13 +9,13 @@ welcome: |
 
 transaction:
   message: |
-    <a href="https://tonscan.org/tx/${hash}">🏷</a> ${type} 👤 <a href="https://tonscan.org/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonscan.org/address/${to}">${toTag}</a>${toBalance}
+    <a href="https://tonviewer.com/transaction/${hash}">🏷</a> ${type} 👤 <a href="https://tonviewer.com/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonviewer.com/${to}">${toTag}</a>${toBalance}
 
     💎 ${value} TON${price}
 
     ${comment}
   channelMessage: |
-    <a href="https://tonscan.org/tx/${hash}">💸</a> <a href="https://tonscan.org/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonscan.org/address/${to}">${toTag}</a>${toBalance}
+    <a href="https://tonviewer.com/transaction/${hash}">💸</a> <a href="https://tonviewer.com/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonviewer.com/${to}">${toTag}</a>${toBalance}
 
     💎 ${value} TON${price}
 
@@ -28,19 +28,19 @@ transaction:
 
 address:
   added: |
-    <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>${formatTag(tag)} was added.
+    <a href="https://tonviewer.com/${address}">${formatAddress(address)}</a>${formatTag(tag)} was added.
 
     You'll get notified about all events of this address.
   chosen: |
-    Here it is: ${tag} <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>.
+    Here it is: ${tag} <a href="https://tonviewer.com/${address}">${formatAddress(address)}</a>.
 
     What do you want to do with the address?
   sendTag: |
-    Send me a tag for this address: <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>
+    Send me a tag for this address: <a href="https://tonviewer.com/${address}">${formatAddress(address)}</a>
 
     For example: <i>My Address</i> and etc.
   deleted: |
-    The address ${tag} <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a> was deleted.
+    The address ${tag} <a href="https://tonviewer.com/${address}">${formatAddress(address)}</a> was deleted.
   share: |
     t.me/${username}?start=${address}
 
@@ -54,7 +54,7 @@ address:
     invalid: |
       Invalid number.
     editMinAmount: |
-      Send me a minimal amount for this address: ${tag} <a href="https://tonscan.org/address/${address}">${formatAddress(address)}</a>
+      Send me a minimal amount for this address: ${tag} <a href="https://tonviewer.com/${address}">${formatAddress(address)}</a>
 
       For example: <i>0.1</i> and etc.
     zeroExceptions: "Exceptions are <b>disabled</b>."
@@ -68,7 +68,7 @@ address:
     inclusionList: "Current inclusion: ${list}"
     currentList: "Current: ${list}"
 
-    
+
 
 list:
   chooseAddress: |
