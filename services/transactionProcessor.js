@@ -11,14 +11,15 @@ const ton = require('./ton')
 const getPrice = require('../monitors/scanPrice')
 const AddressRepository = require('../repositories/address')
 const UserRepository = require('../repositories/user')
-const formatAddress = require('../utils/formatAddress')
 const formatTransactionValue = require('../utils/formatTransactionValue')
 const formatBalance = require('../utils/formatBalance')
 const formatTransactionPrice = require('../utils/formatTransactionPrice')
 const escapeHTML = require('../utils/escapeHTML')
-const getTitleByAddress = require('../monitors/addresses')
 const excludedAddresses = require('../data/excludedAddresses.json')
 const getPools = require('../monitors/pool')
+const getNonBounceAddress = require('../utils/getNonBounceAddress')
+const getTagByAddress = require('../utils/getTagByAddress')
+const isNonBounceAddress = require('../utils/isNonBounceAddress')
 
 const timeout = promisify(setTimeout)
 
@@ -80,19 +81,19 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
       const from =
         address === transaction.from
           ? { address, tag, user_id: userId }
-          : addresses.find((el) => el.address === transaction.from && el.user_id === userId)
+          : addresses.find(({_doc}) => [transaction.from, transaction.fromNonBounce].includes(_doc.address) && _doc.user_id === userId)?._doc
       const to =
         address === transaction.to
           ? { address, tag, user_id: userId }
-          : addresses.find((el) => el.address === transaction.to && el.user_id === userId)
+          : addresses.find(({_doc}) => [transaction.to, transaction.toNonBounce].includes(_doc.address) && _doc.user_id === userId)?._doc
 
       const type = i18n.t(
         user.language,
         address === transaction.from ? 'transaction.send' : 'transaction.receive',
       )
 
-      const fromTag = from && from.tag ? from.tag : transaction.fromDefaultTag
-      const toTag = to && to.tag ? to.tag : transaction.toDefaultTag
+      const fromTag = !!from?.tag ? from.tag : getTagByAddress(isNonBounceAddress(from?.address) ? transaction.fromNonBounce : transaction.from)
+      const toTag = !!to?.tag ? to.tag :  getTagByAddress(isNonBounceAddress(to?.address) ? transaction.toNonBounce : transaction.to)
 
       const rawMessageText = i18n.t(user.language, 'transaction.message', {
         type,
@@ -183,9 +184,8 @@ module.exports = async (data, meta) => {
   const transactionHash = meta.hash
   const transactionSeqno = meta.seqno
 
-  transaction.fromDefaultTag = getTitleByAddress(transaction.from) ||
-    formatAddress(transaction.from)
-  transaction.toDefaultTag = getTitleByAddress(transaction.to) || formatAddress(transaction.to)
+  transaction.fromDefaultTag = getTagByAddress(transaction.from)
+  transaction.toDefaultTag = getTagByAddress(transaction.to)
 
   if (excludedAddresses.includes(transaction.from) || excludedAddresses.includes(transaction.to)) {
     log.info(`Ignored ${excludedAddresses.includes(transaction.from) ? transaction.fromDefaultTag : transaction.toDefaultTag}`)
@@ -202,7 +202,11 @@ module.exports = async (data, meta) => {
   }
   cache.set(transactionHash, data)
 
-  const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
+  transaction.fromNonBounce= getNonBounceAddress(transaction.from)
+  transaction.toNonBounce = getNonBounceAddress(transaction.to)
+
+  const addresses =  await addressRepository.getByAddress(
+      [transaction.fromNonBounce, transaction.toNonBounce, transaction.from, transaction.to], {
     is_deleted: false,
     'notifications.is_enabled': true,
     $expr: { $gte: [transaction.nanoValue, '$notifications.min_amount'] },
