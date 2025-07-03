@@ -17,8 +17,8 @@ const formatBalance = require('../utils/formatBalance')
 const formatTransactionPrice = require('../utils/formatTransactionPrice')
 const escapeHTML = require('../utils/escapeHTML')
 const getTitleByAddress = require('../monitors/addresses')
-const excludedAddresses = require('../data/excludedAddresses.json')
-const getPools = require('../monitors/pool')
+let excludedAddresses = require('../data/excludedAddresses.json')
+// const getPools = require('../monitors/pool')
 
 const timeout = promisify(setTimeout)
 
@@ -33,6 +33,10 @@ const MIN_TRANSACTION_AMOUNT = config.get('min_transaction_amount')
 const cache = new LRUCache({
   ttl: 30 * 60 * 1000, // 30 minutes
   max: 1000,
+})
+
+excludedAddresses = excludedAddresses.map((address) => {
+  return new ton.utils.Address(address).toString(false, false, false, false)
 })
 
 async function getBalance(address, seqno) {
@@ -69,8 +73,10 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
     : ''
 
   // eslint-disable-next-line no-restricted-syntax, object-curly-newline
-  for (const { _id, address, tag, user_id: userId } of addresses) {
+  for (let { _id, address, tag, user_id: userId } of addresses) {
     try {
+      address = new ton.utils.Address(address).toString(false, false, false, false)
+
       const user = await userRepository.getByTgId(userId)
 
       if (user.is_blocked || user.is_deactivated) {
@@ -96,8 +102,8 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
 
       const rawMessageText = i18n.t(user.language, 'transaction.message', {
         type,
-        from: transaction.from,
-        to: transaction.to,
+        from: new ton.utils.Address(transaction.from).toString(true, true, false, false),
+        to: new ton.utils.Address(transaction.to).toString(true, true, false, false),
         fromTag,
         toTag,
         fromBalance:
@@ -130,8 +136,8 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
 
   if (transaction.sendToChannel) {
     const rawMessageText = i18n.t('en', 'transaction.channelMessage', {
-      from: transaction.from,
-      to: transaction.to,
+      from: new ton.utils.Address(transaction.from).toString(true, true, false, false),
+      to: new ton.utils.Address(transaction.to).toString(true, true, false, false),
       fromTag: transaction.fromDefaultTag,
       toTag: transaction.toDefaultTag,
       fromBalance:
@@ -156,53 +162,72 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
   }
 }
 
-function checkIsPoolTransaction(transaction) {
-  const inDestinationAddress = transaction.in_msg?.destination
-
-  const pools = getPools()
-
-  const isDestination = pools.find((pool) => pool.address === inDestinationAddress)
-
-  if(isDestination && transaction.out_msgs.length === 0) {
-    return true
-  }
-
-  const outSourceAddress = transaction.out_msgs[0]?.source
-
-  if (!inDestinationAddress || !outSourceAddress) {
-    return false
-  }
-
-  const isSource = pools.find((pool) => pool.address === outSourceAddress)
-
-  return isDestination && isSource
-}
+// function checkIsPoolTransaction(transaction) {
+//   const inDestinationAddress = transaction.in_msg?.destination
+//
+//   const pools = getPools()
+//
+//   const isDestination = pools.find((pool) => pool.address === inDestinationAddress)
+//
+//   if(isDestination && transaction.out_msgs.length === 0) {
+//     return true
+//   }
+//
+//   const outSourceAddress = transaction.out_msgs[0]?.source
+//
+//   if (!inDestinationAddress || !outSourceAddress) {
+//     return false
+//   }
+//
+//   const isSource = pools.find((pool) => pool.address === outSourceAddress)
+//
+//   return isDestination && isSource
+// }
 
 module.exports = async (data, meta) => {
   const transaction = data
   const transactionHash = meta.hash
   const transactionSeqno = meta.seqno
 
-  transaction.fromDefaultTag = getTitleByAddress(transaction.from) ||
-    formatAddress(transaction.from)
-  transaction.toDefaultTag = getTitleByAddress(transaction.to) || formatAddress(transaction.to)
+  const fromFormats = [
+    new ton.utils.Address(transaction.from)
+    .toString(true, true, true, false), // EQ
+    new ton.utils.Address(transaction.from)
+    .toString(true, true, false, false), // UQ
+    new ton.utils.Address(transaction.from)
+      .toString(true, true, false, true), // Testnet
+  ]
+  const toFormats = [
+    new ton.utils.Address(transaction.to)
+      .toString(true, true, true, false), // EQ
+    new ton.utils.Address(transaction.to)
+      .toString(true, true, false, false), // UQ
+    new ton.utils.Address(transaction.to)
+      .toString(true, true, false, true), // Testnet
+  ]
+
+  transaction.fromDefaultTag = getTitleByAddress(fromFormats) ||
+    formatAddress(new ton.utils.Address(transaction.from)
+      .toString(true, true, false, false))
+  transaction.toDefaultTag = getTitleByAddress(toFormats) || formatAddress(new ton.utils.Address(transaction.to)
+    .toString(true, true, false, false))
 
   if (excludedAddresses.includes(transaction.from) || excludedAddresses.includes(transaction.to)) {
     log.info(`Ignored ${excludedAddresses.includes(transaction.from) ? transaction.fromDefaultTag : transaction.toDefaultTag}`)
     return false
   }
 
-  if (checkIsPoolTransaction(transaction.raw)) {
-    log.info('Ignored pool transaction')
-    return false
-  }
+  // if (checkIsPoolTransaction(transaction.raw)) {
+  //   log.info('Ignored pool transaction')
+  //   return false
+  // }
 
   if (cache.get(transactionHash) !== undefined) {
     return false
   }
   cache.set(transactionHash, data)
 
-  const addresses = await addressRepository.getByAddress([transaction.from, transaction.to], {
+  const addresses = await addressRepository.getByAddress([...fromFormats, ...toFormats], {
     is_deleted: false,
     'notifications.is_enabled': true,
     $expr: { $gte: [transaction.nanoValue, '$notifications.min_amount'] },
@@ -225,7 +250,7 @@ module.exports = async (data, meta) => {
   transaction.sendToChannel = (new Big(transaction.value).gte(MIN_TRANSACTION_AMOUNT))
 
   if (filteredAddresses.length || transaction.sendToChannel) {
-    // log.info(`Sending notify to users(${filteredAddresses.length}) or to channel(${transaction.sendToChannel ? '+' : '-'})`)
+    log.info(`Sending notify to users(${filteredAddresses.length}) or to channel(${transaction.sendToChannel ? '+' : '-'})`)
     await sendTransactionMessage(
       filteredAddresses,
       transaction,

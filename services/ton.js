@@ -19,16 +19,18 @@ class TON {
     this.utils = utils
   }
 
-  async getTransactionsByMasterchainSeqno(seqno) {
-    const response = await this.index.get('/getTransactionsByMasterchainSeqno', {
+  async transactionsByMasterchainBlock(seqno) {
+    const response = await this.index.get('/transactionsByMasterchainBlock', {
       params: {
         seqno,
-        include_msg_body: false,
+        limit: 1000,
+        offset: 0,
+        sort: 'desc',
       },
     })
 
     if (response.status !== 200) {
-      throw new Error('getTransactionsByMasterchainSeqno failed')
+      throw new Error('transactionsByMasterchainBlock failed')
     }
 
     return response.data

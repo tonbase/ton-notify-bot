@@ -31,6 +31,14 @@ const updateAddresses = async () => {
 updateAddresses()
 
 function getTitleByAddress(address) {
+  if (Array.isArray(address)) {
+    for (const addr of address) {
+      if (knownAccounts[addr]) {
+        return knownAccounts[addr]
+      }
+    }
+    return false
+  }
   return knownAccounts[address] || false
 }
 

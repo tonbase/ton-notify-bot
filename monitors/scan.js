@@ -22,7 +22,7 @@ const addTransactionToQueue = async (transaction, seqno) => {
     return false
   }
 
-  const comment = message?.comment || ''
+  const comment = message?.message_content?.decoded?.comment || ''
 
   return transactionProcessor({
     from: message.source,
@@ -67,8 +67,8 @@ const scanAddresses = async () => {
   const excludedTransactionTypes = ['trans_tick_tock']
 
   for (let seqno = currentSeqno; seqno < lastSeqno; seqno++) {
-    const transactionsList = await ton.getTransactionsByMasterchainSeqno(seqno)
-    const filteredTransactionsList = transactionsList
+    const transactionsList = await ton.transactionsByMasterchainBlock(seqno)
+    const filteredTransactionsList = transactionsList.transactions
       .filter((t) => !excludedTransactionTypes
         .includes(t.transaction_type)
       )
@@ -78,8 +78,7 @@ const scanAddresses = async () => {
       transaction.address = new ton.utils.Address(transaction.account)
         .toString(true, true, true, false)
 
-      // log.info(`Adding transaction #${Number(index) + 1} ${transaction
-      //   .transaction_type} to queue (${transaction.address})`)
+      // log.info(`Adding transaction #${Number(index) + 1} to queue (${transaction.address})`)
 
       addTransactionToQueue(transaction, seqno)
     }
