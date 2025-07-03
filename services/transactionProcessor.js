@@ -16,6 +16,7 @@ const formatTransactionValue = require('../utils/formatTransactionValue')
 const formatBalance = require('../utils/formatBalance')
 const formatTransactionPrice = require('../utils/formatTransactionPrice')
 const escapeHTML = require('../utils/escapeHTML')
+const convertAddressToHex = require('../utils/convertAddressToHex')
 const getTitleByAddress = require('../monitors/addresses')
 let excludedAddresses = require('../data/excludedAddresses.json')
 // const getPools = require('../monitors/pool')
@@ -75,7 +76,7 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
   // eslint-disable-next-line no-restricted-syntax, object-curly-newline
   for (let { _id, address, tag, user_id: userId } of addresses) {
     try {
-      address = new ton.utils.Address(address).toString(false, false, false, false)
+      address = convertAddressToHex(address)
 
       const user = await userRepository.getByTgId(userId)
 
@@ -86,11 +87,11 @@ async function sendTransactionMessage(addresses, transaction, transactionMeta) {
       const from =
         address === transaction.from
           ? { address, tag, user_id: userId }
-          : addresses.find((el) => el.address === transaction.from && el.user_id === userId)
+          : addresses.find((el) => convertAddressToHex(el.address) === transaction.from && el.user_id === userId)
       const to =
         address === transaction.to
           ? { address, tag, user_id: userId }
-          : addresses.find((el) => el.address === transaction.to && el.user_id === userId)
+          : addresses.find((el) => convertAddressToHex(el.address) === transaction.to && el.user_id === userId)
 
       const type = i18n.t(
         user.language,
