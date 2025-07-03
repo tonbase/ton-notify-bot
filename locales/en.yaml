@@ -9,13 +9,13 @@ welcome: |
 
 transaction:
   message: |
-    <a href="https://tonscan.org/transaction/${hash}">🏷</a> ${type} 👤 <a href="https://tonscan.org/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonscan.org/${to}">${toTag}</a>${toBalance} · <a href="https://tonscan.org/transaction/${hash}">open tx</a>
+    <a href="https://tonscan.org/transaction/${hash}">🏷</a> ${type} 👤 <a href="https://tonscan.org/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonscan.org/address/${to}">${toTag}</a>${toBalance} · <a href="https://tonscan.org/transaction/${hash}">open tx</a>
 
     💎 ${value} TON${price}
 
     ${comment}
   channelMessage: |
-    <a href="https://tonscan.org/transaction/${hash}">💸</a> <a href="https://tonscan.org/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonscan.org/${to}">${toTag}</a>${toBalance} · <a href="https://tonscan.org/transaction/${hash}">open tx</a>
+    <a href="https://tonscan.org/transaction/${hash}">💸</a> <a href="https://tonscan.org/address/${from}">${fromTag}</a>${fromBalance} ➜ <a href="https://tonscan.org/address/${to}">${toTag}</a>${toBalance} · <a href="https://tonscan.org/transaction/${hash}">open tx</a>
 
     💎 ${value} TON${price}
 
