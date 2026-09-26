@@ -130,7 +130,8 @@ function formatNotification(action, watched, record, metadata = {}) {
     route = `${party(watched)} · ${linkAddress(d.pool, label)}`
   }
   const hash = action.transactions?.[0] || action.trace_id
-  const transaction = hash ? ` · <a href="https://tonscan.org/transaction/${encodeURIComponent(hash)}">tx</a>` : ''
+  const transactionUrl = hash ? `https://tonscan.org/transaction/${encodeURIComponent(hash)}` : null
+  const transaction = transactionUrl ? ` · <a href="${escapeHtml(transactionUrl)}">tx</a>` : ''
   const amount = amountText(action, metadata).replace(/^(?:💎|🪙|🖼)\s*/u, '')
   let headline
   if (action.success === false) {
@@ -159,7 +160,13 @@ function formatNotification(action, watched, record, metadata = {}) {
   // transaction link exposes the complete reference and precise swap amounts.
   const excerpt = hash ? comment.replace(/\s+Ref#[A-Za-z0-9_-]+$/u, '') : comment
   if (excerpt.trim()) lines.push(`<i>“${escapeHtml(compactText(excerpt, 48))}”</i>`)
-  return { text: [...lines, ...details].join('\n') }
+  const text = [...lines, ...details].join('\n')
+  if (!transactionUrl) return { text }
+  // Keep the URL button inside one paragraph so the native link does not add
+  // a separate button row or spacing between notification lines.
+  const richLines = [...lines, ...details]
+  richLines[1] = `${route} <tg-button type="url" url="${escapeHtml(transactionUrl)}">tx</tg-button>`
+  return { text, richHtml: `<p>${richLines.join('\n').replaceAll('\n', '<br>')}</p>` }
 }
 
 function formatAction(action, watched, record, metadata = {}) {

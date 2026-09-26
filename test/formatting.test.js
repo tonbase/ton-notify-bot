@@ -32,7 +32,7 @@ test('NFT purchase direction uses real seller and distinguishes payout from pric
   assert.match(text, /Seller payout: 5 TON/)
 })
 
-test('plain notifications show a short quote without mutating references or implying a purchase', () => {
+test('notifications show a short quote without mutating references or implying a purchase', () => {
   const comment = '90 Telegram Stars Ref#example123'
   const action = { type: 'ton_transfer', success: true, transactions: ['test/hash'], details: {
     source: A, destination: T, value: '919800000', comment,
@@ -41,14 +41,37 @@ test('plain notifications show a short quote without mutating references or impl
   assert.match(plain(output.text).split('\n')[0], /^−0.9198 TON/)
   assert.match(output.text, /<i>“90 Telegram Stars”<\/i>/)
   assert.equal(action.details.comment, comment)
-  assert.equal(output.richHtml, undefined)
+  assert.match(output.richHtml, /<i>“90 Telegram Stars”<\/i>/)
   assert(!output.text.includes('Bought'))
   assert(output.text.includes('test%2Fhash'))
   assert.equal(output.text.split('\n').length, 3)
   action.details.comment = '<b>Untrusted</b> '.repeat(10)
   assert(formatNotification(action, A).text.includes('&lt;b&gt;Untrusted&lt;/b&gt;'))
+  assert(formatNotification(action, A).richHtml.includes('&lt;b&gt;Untrusted&lt;/b&gt;'))
   action.details.encrypted = true
   assert(!formatNotification(action, A).text.includes('Untrusted'))
+  assert(!formatNotification(action, A).richHtml.includes('Untrusted'))
+})
+
+test('every event uses one inline tx button with the same destination as its plain fallback', () => {
+  for (const type of ['ton_transfer', 'jetton_transfer', 'nft_transfer', 'jetton_swap', 'jetton_mint',
+    'jetton_burn', 'nft_mint', 'stake_deposit', 'raw_message', 'unknown']) {
+    const action = { type, transactions: ['hash/+="<&'], trace_id: 'another-hash', details: {} }
+    const output = formatNotification(action, A)
+    const url = `https://tonscan.org/transaction/${encodeURIComponent(action.transactions[0])}`
+    assert(output.richHtml.includes(`<tg-button type="url" url="${url}">tx</tg-button>`))
+    assert(output.text.includes(`<a href="${url}">tx</a>`))
+    assert.equal((output.richHtml.match(/<tg-button /g) || []).length, 1)
+    assert.equal((output.richHtml.match(/<p>/g) || []).length, 1)
+    assert(!output.richHtml.includes('another-hash'))
+    assert(!/<(?:details|footer|table|tg-button-row)\b/.test(output.richHtml))
+  }
+  const action = { type: 'ton_transfer', details: {}, trace_id: 'trace/hash' }
+  assert(formatNotification(action, A).richHtml.includes('trace%2Fhash'))
+  delete action.trace_id
+  const missingHash = formatNotification(action, A)
+  assert.equal(missingHash.richHtml, undefined)
+  assert(!missingHash.text.includes('/transaction/'))
 })
 
 test('short swap amounts mark rounding, keep large integer precision and never erase tiny values', () => {
