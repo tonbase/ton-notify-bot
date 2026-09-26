@@ -8,10 +8,23 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => 
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char])
 
+const metadataIndexes = new WeakMap()
+
 function metadataFor(metadata, address) {
   const wanted = rawAddress(address)
-  if (!wanted || !metadata) return null
-  const key = Object.keys(metadata).find((candidate) => rawAddress(candidate) === wanted)
+  if (!wanted || !metadata || typeof metadata !== 'object') return null
+  // Index an immutable provider response once, even when an action fans out
+  // to many subscriptions. Weak keys release the index with its response.
+  let index = metadataIndexes.get(metadata)
+  if (!index) {
+    index = new Map()
+    for (const candidate of Object.keys(metadata)) {
+      const raw = rawAddress(candidate)
+      if (raw && !index.has(raw)) index.set(raw, candidate)
+    }
+    metadataIndexes.set(metadata, index)
+  }
+  const key = index.get(wanted)
   return key ? metadata[key]?.token_info?.find((info) => info.valid !== false) || null : null
 }
 
