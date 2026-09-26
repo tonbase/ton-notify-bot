@@ -139,10 +139,10 @@ async function routeEntries(entries, watched) {
 
 async function reconcileTraces(client) {
   const tasks = await TraceTask.find({ status: 'pending', next_attempt_at: { $lte: new Date() } })
-    .sort({ next_attempt_at: 1 }).limit(20).lean()
+    .sort({ next_attempt_at: 1 }).limit(100).lean()
   if (!tasks.length) return { pendingChecked: 0 }
   const watched = await loadWatched()
-  for (const task of tasks) {
+  const results = await Promise.allSettled(tasks.map(async (task) => {
     // Schedule before network I/O; one failing trace cannot starve later tasks.
     await TraceTask.updateOne({ _id: task._id }, { $inc: { attempts: 1 },
       $set: { next_attempt_at: new Date(Date.now() + Math.min(10000 * 2 ** Math.min(task.attempts, 8), 3600000)) } })
@@ -152,7 +152,7 @@ async function reconcileTraces(client) {
     if (!Array.isArray(page.traces)) throw new Error('Invalid traces response')
     const trace = page.traces[0]
     if (!trace || trace.is_incomplete || trace.trace_info?.trace_state !== 'complete'
-      || trace.trace_info.pending_messages > 0) continue
+      || trace.trace_info.pending_messages > 0) return
     const entries = []
     let lastPageId = null
     for (let offset = 0; ; offset += config.pageSize) {
@@ -165,17 +165,19 @@ async function reconcileTraces(client) {
       if (offset >= 1000000) throw new Error('Trace action safety limit exceeded')
     }
     // The indexer may expose complete traces before their classifier catches up.
-    if (!entries.length && trace.trace_info.classification_state !== 'classified') continue
+    if (!entries.length && trace.trace_info.classification_state !== 'classified') return
     await routeEntries(entries, watched)
     const transactions = Object.values(trace.transactions || {})
     const expected = trace.trace_info.transactions
-    if (!transactions.length || (expected && transactions.length < expected)) continue
+    if (!transactions.length || (expected && transactions.length < expected)) return
     for (const action of rawFallbacks(transactions, entries.map((entry) => entry.action))) {
       await routeAction(action, page.metadata || {}, watched)
     }
     await TraceTask.updateOne({ _id: task._id }, { $set: { status: 'done' } })
-  }
-  return { pendingChecked: tasks.length }
+  }))
+  const failed = results.find((result) => result.status === 'rejected')
+  if (failed) throw failed.reason
+  return { pendingChecked: tasks.length, catchingUp: tasks.length === 100 }
 }
 
 function shouldSuppress(action, significantTraces) {
@@ -255,15 +257,16 @@ async function scanCycle(client, state = {}) {
       state.replayWindowEnd = lastProcessed
       state.replayOffset = 0
     }
-    const replay = Math.max(1, state.replayWindowEnd - state.replayOffset)
+    const replay = Math.max(config.startSeqno || 1, state.replayWindowEnd - state.replayOffset)
     await scanBlock(client, replay, watched)
     state.replayOffset += 1
   }
   return state
 }
 
-async function sendPending(api, state = {}, { maxMessages = 100, chatId } = {}) {
+async function sendPending(api, state = {}, { maxMessages = 100, chatId, batchSize = 1 } = {}) {
   if (!Number.isSafeInteger(maxMessages) || maxMessages < 1) throw new Error('Invalid delivery batch size')
+  if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 10) throw new Error('Invalid notification group size')
   let sent = 0
   if (state.cooldownUntil > Date.now()) return sent
   state.chats ||= new Map()
@@ -294,13 +297,43 @@ async function sendPending(api, state = {}, { maxMessages = 100, chatId } = {}) 
         continue
       }
     }
+    const batch = [delivery]
+    let text = delivery.text
+    let richHtml = delivery.rich_html
+    for (let extra = 1; extra < batchSize; extra += 1) {
+      const next = await Delivery.findOneAndUpdate({
+        chat_id: delivery.chat_id, status: 'pending', next_attempt_at: { $lte: new Date() },
+      }, { $set: { status: 'sending', lease_until: new Date(Date.now() + 120000) }, $inc: { attempts: 1 } },
+      { sort: { created_at: 1 }, new: true })
+      if (!next) break
+      if (next.address_id) {
+        const [address, user] = await Promise.all([Address.findById(next.address_id), User.findOne({ user_id: Number(next.user_id) })])
+        if (!address || !user || address.is_deleted || !address.notifications?.is_enabled || user.is_blocked || user.is_deactivated) {
+          await Delivery.updateOne({ _id: next._id }, { $set: { status: 'skipped' }, $unset: { lease_until: 1 } })
+          continue
+        }
+      }
+      const combinedText = `${text}\n\n${next.text}`
+      const combinedRich = richHtml && next.rich_html ? `${richHtml}\n${next.rich_html}` : null
+      // Counting the HTML source is conservative: parsed text is shorter.
+      if (combinedText.length > 3500 || (combinedRich && combinedRich.length > 30000)) {
+        await Delivery.updateOne({ _id: next._id }, { $set: { status: 'pending' }, $unset: { lease_until: 1 }, $inc: { attempts: -1 } })
+        break
+      }
+      batch.push(next)
+      text = combinedText
+      richHtml = combinedRich
+    }
+    const updateBatch = (update) => batch.length === 1
+      ? Delivery.updateOne({ _id: delivery._id }, update)
+      : Delivery.updateMany({ _id: { $in: batch.map((item) => item._id) } }, update)
     try {
       state.chats.set(String(delivery.chat_id), Date.now() + (Number(delivery.chat_id) < 0 ? 3100 : 1100))
-      const sendText = () => api.sendMessage(delivery.chat_id, delivery.text, {
+      const sendText = () => api.sendMessage(delivery.chat_id, text, {
         parse_mode: 'HTML', link_preview_options: { is_disabled: true },
       })
-      if (delivery.rich_html && typeof api.sendRichMessage === 'function') {
-        try { await api.sendRichMessage(delivery.chat_id, { html: delivery.rich_html, skip_entity_detection: true }) }
+      if (richHtml && typeof api.sendRichMessage === 'function') {
+        try { await api.sendRichMessage(delivery.chat_id, { html: richHtml, skip_entity_detection: true }) }
         catch (error) {
           // Only an explicit rejection allows a second send without risking an
           // accepted rich message also being delivered as plain text.
@@ -308,10 +341,10 @@ async function sendPending(api, state = {}, { maxMessages = 100, chatId } = {}) 
           await sendText()
         }
       } else await sendText()
-      await Delivery.updateOne({ _id: delivery._id }, { $set: { status: 'sent', sent_at: new Date() }, $unset: { lease_until: 1, last_error: 1 } })
+      await updateBatch({ $set: { status: 'sent', sent_at: new Date() }, $unset: { lease_until: 1, last_error: 1 } })
       sent += 1
-      if (delivery.address_id) {
-        try { await Address.updateOne({ _id: delivery.address_id }, { $inc: { 'counters.send_coins': 1 } }) }
+      for (const item of batch.filter((item) => item.address_id)) {
+        try { await Address.updateOne({ _id: item.address_id }, { $inc: { 'counters.send_coins': 1 } }) }
         catch (error) { console.error(`Could not update address counter: ${safeError(error)}`) }
       }
       await sleep(40)
@@ -322,11 +355,11 @@ async function sendPending(api, state = {}, { maxMessages = 100, chatId } = {}) 
         if (delivery.user_id && (code === 403 || /chat not found|user is deactivated/i.test(error.description || ''))) {
           await User.updateOne({ user_id: Number(delivery.user_id) }, { $set: { is_blocked: true } })
         }
-        await Delivery.updateOne({ _id: delivery._id }, { $set: { status: 'skipped', last_error: safeError(error).slice(0, 300) }, $unset: { lease_until: 1 } })
+        await updateBatch({ $set: { status: 'skipped', last_error: safeError(error).slice(0, 300) }, $unset: { lease_until: 1 } })
       } else {
         const retryAfter = error.parameters?.retry_after || error.error?.parameters?.retry_after
         const wait = retryAfter ? retryAfter * 1000 + 100 : Math.min(60000 * 2 ** Math.min(delivery.attempts || 1, 6), 3600000)
-        await Delivery.updateOne({ _id: delivery._id }, { $set: {
+        await updateBatch({ $set: {
           status: 'pending', next_attempt_at: new Date(Date.now() + wait),
           last_error: safeError(error).slice(0, 300),
         }, $unset: { lease_until: 1 } })
@@ -343,6 +376,7 @@ async function main() {
   const signal = shutdownSignal()
   if (!await connectDatabase(signal, 'scanner')) return
   await Delivery.collection.createIndex({ status: 1, next_attempt_at: 1, created_at: 1 })
+  await Delivery.collection.createIndex({ chat_id: 1, status: 1, created_at: 1 })
   await TraceTask.collection.createIndex({ status: 1, next_attempt_at: 1 })
   const client = new TonCenter()
   const state = {}
@@ -356,7 +390,7 @@ async function main() {
   if (config.sendNotifications) {
     const api = new Api(config.botToken, { timeoutSeconds: 30 })
     const deliveryState = {}
-    workers.push(workerLoop('delivery', async () => ({ sent: await sendPending(api, deliveryState) }), { signal, intervalMs: 250 }))
+    workers.push(workerLoop('delivery', async () => ({ sent: await sendPending(api, deliveryState, { batchSize: config.notificationBatchSize }) }), { signal, intervalMs: 250 }))
   } else {
     await health('delivery', { status: 'disabled' })
   }

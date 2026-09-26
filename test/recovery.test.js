@@ -66,3 +66,21 @@ test('collapsing a contract call preserves a different watched participant in th
   ], { map: new Map([[A, [records[0]]], [B, [records[1]]]]), active: new Set([1, 2]) })
   assert.deepEqual(queued.map((item) => [item.action_id, item.chat_id]), [['transfer', 1], ['call', 2], ['other-call', 1]])
 })
+
+test('a failed trace request does not prevent other due traces from finishing', async (t) => {
+  const tasks = ['failed', 'healthy'].map(_id => ({ _id, trace_id: _id, attempts: 0 }))
+  const finished = []
+  t.mock.method(TraceTask, 'find', () => ({ sort: () => ({ limit: () => ({ lean: async () => tasks }) }) }))
+  t.mock.method(TraceTask, 'updateOne', async (filter, update) => { if (update.$set?.status === 'done') finished.push(filter._id) })
+  t.mock.method(Address, 'find', () => ({ lean: async () => [] }))
+  t.mock.method(User, 'find', () => ({ lean: async () => [] }))
+  const client = {
+    get: async (_path, query) => {
+      if (query.trace_id === 'failed') throw new Error('temporary upstream failure')
+      return { traces: [{ trace_id: 'healthy', trace_info: { trace_state: 'complete', classification_state: 'classified', pending_messages: 0, transactions: 1 }, transactions: { tx: { hash: 'tx' } } }] }
+    },
+    actions: async () => ({ actions: [] }),
+  }
+  await assert.rejects(reconcileTraces(client), /temporary upstream failure/)
+  assert.deepEqual(finished, ['healthy'])
+})

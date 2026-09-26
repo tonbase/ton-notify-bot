@@ -64,6 +64,7 @@ Delivery is at least once: a crash or network timeout after Telegram accepts a m
 | Setting | Purpose |
 | --- | --- |
 | `SEND_NOTIFICATIONS` | `false` by default; explicitly set `true` to send queued notifications |
+| `NOTIFICATION_BATCH_SIZE` | Maximum queued events per Telegram message for the same chat, 1 by default, at most 10. Busy subscriptions can group existing compact event paragraphs to stay within Telegram throughput limits. Each event retains its own delivery ID and tx link; disabled subscriptions are checked before grouping. Plain HTML is capped at 3500 characters per group. |
 | `TON_REQUESTS_PER_SECOND` | Per-scanner ceiling, default 80; leave room if the key is shared |
 | `TON_HTTP_CONCURRENCY` | Maximum simultaneous API requests, default 8 |
 | `SCAN_BLOCK_CONCURRENCY` | Concurrent block scans, default 4; cursor commits remain ordered and catch-up batches run without the idle delay |
