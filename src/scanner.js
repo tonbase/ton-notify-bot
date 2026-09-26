@@ -20,6 +20,7 @@ function deliveryOperation(action, recipient, notification, record) {
   const id = deliveryId(action.action_id, record ? String(record._id) : `channel:${recipient}`)
   return { updateOne: { filter: { _id: id }, update: { $setOnInsert: {
       _id: id, status: 'pending', attempts: 0, chat_id: recipient,
+      chat_type: record ? 'private' : 'channel',
       user_id: record ? String(record.user_id) : '',
       address_id: record ? String(record._id) : '',
       action_id: action.action_id, text: notification.text, rich_html: notification.richHtml,
@@ -363,6 +364,16 @@ async function sendPending(api, state = {}, { maxMessages = 100, chatId, batchSi
       batch.push(next)
       text = combinedText
       richHtml = combinedRich
+    }
+    // A Premium owner does not enable custom emoji in channels. Render their
+    // standard alternatives before sending, including already queued messages
+    // without chat_type for the configured channel. Keep rich layout and links.
+    const isChannel = batch.some((item) => item.chat_type === 'channel')
+      || (config.channelId && String(delivery.chat_id) === String(config.channelId))
+    if (isChannel) {
+      const standardEmoji = (html) => html?.replace(/<tg-emoji\b[^>]*>([\s\S]*?)<\/tg-emoji>/gu, '$1')
+      text = standardEmoji(text)
+      richHtml = standardEmoji(richHtml)
     }
     const updateBatch = (update) => batch.length === 1
       ? Delivery.updateOne({ _id: delivery._id }, update)
