@@ -28,7 +28,7 @@ test('NFT purchase direction uses real seller and distinguishes payout from pric
   const text = formatAction({ type: 'nft_transfer', details: {
     old_owner: T, real_old_owner: A, is_purchase: true, payout_amount: '5000000000',
   } }, A)
-  assert.match(text, /^<b>Sold · /)
+  assert.match(text, /^📤 <b>Sold · /)
   assert.match(text, /Seller payout: 5 GRAM/)
 })
 
@@ -38,7 +38,8 @@ test('notifications show a short quote without mutating references or implying a
     source: A, destination: T, value: '919800000', comment,
   } }
   const output = formatNotification(action, A, { tag: 'Main wallet' })
-  assert.match(plain(output.text).split('\n')[0], /^−0.9198 GRAM/)
+  assert.match(plain(output.text).split('\n')[0], /^📤 −0.9198 GRAM/)
+  assert.match(output.richHtml, /^<p><tg-emoji emoji-id="5445355530111437729">📤<\/tg-emoji>/)
   assert.match(output.text, /<i>“90 Telegram Stars”<\/i>/)
   assert.equal(action.details.comment, comment)
   assert.match(output.richHtml, /<i>“90 Telegram Stars”<\/i>/)
@@ -86,10 +87,10 @@ test('short swap amounts mark rounding, keep large integer precision and never e
 test('failed and self transfers never imply a successful balance change', () => {
   const action = { type: 'ton_transfer', success: false, details: { source: A, destination: T, value: '1000000000' } }
   const failed = plain(formatNotification(action, A).text)
-  assert.match(failed, /^⚠︎ Failed · 1 GRAM/)
+  assert.match(failed, /^⚠️ Failed · 1 GRAM/)
   assert(!failed.includes('−1 GRAM'))
   action.success = true; action.details.destination = A
   const self = plain(formatNotification(action, A).text)
-  assert.match(self, /^1 GRAM/)
+  assert.match(self, /^🔁 1 GRAM/)
   assert.match(self, /Self/)
 })

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict')
 const { Address } = require('@ton/core')
 const { rawAddress } = require('../src/address')
 const { formatUnits, toNano } = require('../src/amount')
-const { formatAction, participants, passesFilters } = require('../src/events')
+const { formatAction, formatNotification, participants, passesFilters } = require('../src/events')
 const { parseAddressInput, parseWordFilters } = require('../src/bot')
 const { scanBlock, deliveryId, shouldSuppress } = require('../src/scanner')
 
@@ -39,9 +39,10 @@ test('jetton transfer uses token decimals and escapes untrusted metadata', () =>
 })
 
 test('NFT transfer is associated with both owners', () => {
-  const action = { type: 'nft_transfer', success: true, details: { old_owner: A, new_owner: B, nft_item: TOKEN } }
+  const action = { type: 'nft_transfer', success: true, transactions: ['hash'], details: { old_owner: A, new_owner: B, nft_item: TOKEN } }
   assert.deepEqual(participants(action), [A, B])
-  assert.match(formatAction(action, B), /^\+ <b>/)
+  assert.match(formatAction(action, B), /^📥 \+ <b>/)
+  assert.match(formatNotification(action, B).richHtml, /^<p><tg-emoji emoji-id="5443127283898405358">📥<\/tg-emoji>/)
 })
 
 test('minimum GRAM amount does not suppress jetton or NFT events', () => {

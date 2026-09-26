@@ -100,6 +100,24 @@ function linkAddress(address, label) {
   return `<a href="https://tonscan.org/address/${encodeURIComponent(friendly)}">${escapeHtml(label || shortAddress(address))}</a>`
 }
 
+function eventIcon(action, direction) {
+  if (action.success === false) return { emoji: '⚠️' }
+  if (['ton_transfer', 'jetton_transfer', 'nft_transfer'].includes(action.type)) {
+    // Public Finance Emoji set: https://t.me/addemoji/FinanceEmoji
+    if (direction === 'Send') return { emoji: '📤', customId: '5445355530111437729' }
+    if (direction === 'Receive') return { emoji: '📥', customId: '5443127283898405358' }
+    return { emoji: direction === 'Self' ? '🔁' : '↔️' }
+  }
+  const icons = {
+    jetton_swap: '🔄', jetton_mint: '✨', nft_mint: '✨', jetton_burn: '🔥',
+    stake_deposit: '🔒', election_deposit: '🔒', stake_withdrawal_request: '⏳',
+    stake_withdrawal: '🔓', election_recover: '🔓',
+    dex_deposit_liquidity: '➕', dex_withdraw_liquidity: '➖',
+    contract_deploy: '🛠️', call_contract: '⚙️', account_update: '⚙️', raw_message: '📨',
+  }
+  return { emoji: icons[action.type] || '🔔' }
+}
+
 function formatNotification(action, watched, record, metadata = {}) {
   const d = action.details || {}
   const stakingIn = ['stake_deposit', 'stake_withdrawal_request'].includes(action.type)
@@ -135,7 +153,7 @@ function formatNotification(action, watched, record, metadata = {}) {
   const amount = amountText(action, metadata).replace(/^(?:💎|🪙|🖼)\s*/u, '')
   let headline
   if (action.success === false) {
-    headline = `⚠︎ <b>Failed · ${transfer ? amount || escapeHtml(actionTitle(action)) : escapeHtml(actionTitle(action)) + (amount ? ` · ${amount}` : '')}</b>`
+    headline = `<b>Failed · ${transfer ? amount || escapeHtml(actionTitle(action)) : escapeHtml(actionTitle(action)) + (amount ? ` · ${amount}` : '')}</b>`
   } else if (transfer) {
     const sign = direction === 'Send' ? '−' : direction === 'Receive' ? '+' : ''
     if (action.type === 'nft_transfer') {
@@ -149,7 +167,8 @@ function formatNotification(action, watched, record, metadata = {}) {
   } else {
     headline = `<b>${escapeHtml(actionTitle(action))}</b>${amount ? ` · ${amount}` : ''}`
   }
-  const lines = [headline, `${route}${transaction}`]
+  const icon = eventIcon(action, direction)
+  const lines = [`${icon.emoji} ${headline}`, `${route}${transaction}`]
   const details = []
   // The NFT name opens its item page, which also exposes the collection.
   if (d.nft_collection && !d.nft_item) details.push(linkAddress(d.nft_collection, 'Collection'))
@@ -165,6 +184,7 @@ function formatNotification(action, watched, record, metadata = {}) {
   // Keep the URL button inside one paragraph so the native link does not add
   // a separate button row or spacing between notification lines.
   const richLines = [...lines, ...details]
+  if (icon.customId) richLines[0] = `<tg-emoji emoji-id="${icon.customId}">${icon.emoji}</tg-emoji> ${headline}`
   richLines[1] = `${route} <tg-button type="url" url="${escapeHtml(transactionUrl)}">tx</tg-button>`
   return { text, richHtml: `<p>${richLines.join('\n').replaceAll('\n', '<br>')}</p>` }
 }

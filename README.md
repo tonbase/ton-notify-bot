@@ -17,6 +17,8 @@ Notifications use one rich text paragraph: amount or NFT on the first line, shor
 
 Native coin amounts use the GRAM ticker. TON remains the blockchain name, and provider names, API action types and configuration keys keep their existing identifiers. The delivery queue stores rich HTML with a plain HTML fallback. An explicit Telegram 400 rejection falls back to the plain message; timeouts and ambiguous failures use the usual retry path.
 
+Each notification starts with one event icon: incoming/outgoing, swap, failure, mint/burn, staking, or another action. Incoming/outgoing transfers use the paired custom icons from [Finance Emoji](https://t.me/addemoji/FinanceEmoji) in rich messages and standard emoji in the plain fallback. Telegram requires the bot to be eligible for custom emoji (a Premium owner for directly sent private/group messages, or an additional username purchased on Fragment); see the [Bot API formatting rules](https://core.telegram.org/bots/api#html-style).
+
 ## Checks
 
 ### Vote on message designs in Telegram
