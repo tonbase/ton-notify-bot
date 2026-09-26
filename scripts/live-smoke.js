@@ -34,7 +34,7 @@ async function main() {
     for (const [index, sample] of samples.entries()) {
       const userId = 900000 + index
       await User.create({ user_id: userId, first_name: 'Smoke test' })
-      await Address.create({ user_id: userId, address: sample.address, tag: sample.type })
+      await Address.create({ user_id: userId, address: sample.address, tag: 'My wallet' })
     }
     const watched = await loadWatched()
     for (const seqno of [...new Set(samples.map((sample) => sample.action.trace_mc_seqno_end))]) {
@@ -56,7 +56,7 @@ async function main() {
     assert.equal(await Delivery.countDocuments(), before, 'Block replay must not duplicate deliveries')
     const directory = path.join(__dirname, '..', '.local')
     await fs.mkdir(directory, { recursive: true })
-    await fs.writeFile(path.join(directory, 'live-notifications.html'), `<!doctype html><meta charset="utf-8"><title>Live TON notifications</title><style>body{font:16px system-ui;background:#eef3f7;max-width:780px;margin:32px auto}article{white-space:pre-wrap;background:white;border-radius:16px;padding:24px;margin:16px 0;line-height:1.7}a{color:#007dad}h1{font-size:24px}</style><h1>Live TON notification samples</h1>${preview.join('\n')}`)
+    await fs.writeFile(path.join(directory, 'live-notifications.html'), `<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Compact TON notifications</title><style>*{box-sizing:border-box}body{font:15px system-ui;background:#eef3f7;max-width:640px;margin:24px auto;padding:0 16px}article{white-space:pre-wrap;overflow-wrap:anywhere;background:white;border-radius:12px;padding:12px 14px;margin:10px 0;line-height:1.5}a{color:#007dad;text-decoration:none}a:hover{text-decoration:underline}h1{font-size:22px}p{color:#586779;font-size:13px}</style><h1>Компактные уведомления</h1><p>Живые операции: участники и ссылка на транзакцию в первой строке, сумма или NFT — во второй. Длинные строки переносятся по ширине экрана.</p>${preview.join('\n')}</html>`)
     console.log('PASS trace reconciliation and duplicate-free block replay; preview saved in .local/live-notifications.html')
   } finally {
     await mongoose.connection.dropDatabase()

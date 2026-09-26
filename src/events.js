@@ -30,10 +30,10 @@ function assetAmount(amount, asset, metadata, knownTon = false) {
   const token = metadataFor(metadata, asset)
   const decimalsValue = token?.extra?.decimals ?? token?.decimals
   const decimals = decimalsValue === undefined ? null : Number(decimalsValue)
-  const symbol = String(token?.symbol || token?.name || 'jetton').slice(0, 48)
+  const symbol = compactText(token?.symbol || token?.name || 'jetton', 24)
   const quantity = Number.isInteger(decimals) && decimals >= 0 && decimals <= 30
     ? formatUnits(amount || '0', decimals, decimals) : `${amount || '0'} base units`
-  return `${escapeHtml(quantity)} ${escapeHtml(symbol)}`
+  return `${escapeHtml(quantity)} ${linkAddress(asset, symbol)}`
 }
 
 function amountText(action, metadata) {
@@ -45,17 +45,18 @@ function amountText(action, metadata) {
   if (['nft_transfer', 'nft_mint'].includes(action.type)) {
     const token = metadataFor(metadata, details.nft_item)
     const name = token?.name || 'NFT'
-    return `🖼 ${escapeHtml(String(name).slice(0, 80))}`
+    return `🖼 ${linkAddress(details.nft_item, compactText(name, 64))}`
   }
   if (action.type === 'jetton_swap') {
     const incoming = details.dex_incoming_transfer
     const outgoing = details.dex_outgoing_transfer
-    return [incoming && `In: ${assetAmount(incoming.amount, incoming.asset, metadata)}`,
-      outgoing && `Out: ${assetAmount(outgoing.amount, outgoing.asset, metadata)}`].filter(Boolean).join('\n')
+    if (incoming && outgoing) return `🪙 ${assetAmount(incoming.amount, incoming.asset, metadata)} → ${assetAmount(outgoing.amount, outgoing.asset, metadata)}`
+    return incoming ? `Out: ${assetAmount(incoming.amount, incoming.asset, metadata)}`
+      : outgoing ? `In: ${assetAmount(outgoing.amount, outgoing.asset, metadata)}` : ''
   }
   if (['dex_deposit_liquidity', 'dex_withdraw_liquidity'].includes(action.type)) {
-    return [1, 2].filter((index) => details[`amount_${index}`] !== undefined)
-      .map((index) => `🪙 ${assetAmount(details[`amount_${index}`], details[`asset_${index}`], metadata)}`).join('\n')
+    return `🪙 ${[1, 2].filter((index) => details[`amount_${index}`] !== undefined)
+      .map((index) => assetAmount(details[`amount_${index}`], details[`asset_${index}`], metadata)).join(' + ')}`
   }
   if (['stake_deposit', 'stake_withdrawal', 'election_deposit', 'election_recover'].includes(action.type)) {
     return `💎 ${assetAmount(details.amount, null, metadata)}`
@@ -73,16 +74,21 @@ function amountText(action, metadata) {
 function actionTitle(action) {
   const titles = {
     ton_transfer: 'TON transfer', jetton_transfer: 'Jetton transfer',
-    nft_transfer: 'NFT transfer', jetton_mint: 'Jetton mint', jetton_burn: 'Jetton burn',
-    nft_mint: 'NFT mint', jetton_swap: 'Token swap', contract_deploy: 'Contract deployed',
-    call_contract: 'Contract call', stake_deposit: 'Stake deposit',
-    stake_withdrawal: 'Stake withdrawal', stake_withdrawal_request: 'Stake withdrawal request',
+    nft_transfer: 'NFT transfer', jetton_mint: 'Mint', jetton_burn: 'Burn',
+    nft_mint: 'Mint', jetton_swap: 'Swap', contract_deploy: 'Deploy',
+    call_contract: 'Contract call', stake_deposit: 'Stake',
+    stake_withdrawal: 'Unstake', stake_withdrawal_request: 'Request unstake',
     dex_deposit_liquidity: 'Add liquidity', dex_withdraw_liquidity: 'Remove liquidity',
     election_deposit: 'Validator deposit', election_recover: 'Validator withdrawal',
     raw_message: 'Blockchain message',
     account_update: 'Account update',
   }
-  return titles[action.type] || String(action.type || 'Blockchain event').replaceAll('_', ' ')
+  return titles[action.type] || compactText(String(action.type || 'Blockchain event').replaceAll('_', ' '), 40)
+}
+
+function compactText(value, limit) {
+  const characters = Array.from(String(value ?? '').replace(/\s+/g, ' ').trim())
+  return characters.length > limit ? `${characters.slice(0, limit - 1).join('')}…` : characters.join('')
 }
 
 function linkAddress(address, label) {
@@ -93,33 +99,40 @@ function linkAddress(address, label) {
 
 function formatAction(action, watched, record, metadata = {}) {
   const d = action.details || {}
-  const source = d.source || d.sender || d.real_old_owner || d.old_owner || (action.type === 'jetton_burn' ? d.owner : null)
-  const destination = d.destination || d.receiver || d.new_owner || (action.type === 'nft_mint' ? d.owner : null)
+  const stakingIn = ['stake_deposit', 'stake_withdrawal_request'].includes(action.type)
+  const stakingOut = action.type === 'stake_withdrawal'
+  const source = d.source || d.sender || d.real_old_owner || d.old_owner
+    || (action.type === 'jetton_burn' ? d.owner : stakingIn ? d.stake_holder : stakingOut ? d.pool : null)
+  const destination = d.destination || d.receiver || d.new_owner
+    || (action.type === 'nft_mint' ? d.owner : stakingIn ? d.pool : stakingOut ? d.stake_holder : null)
   const watchedRaw = rawAddress(watched)
   const direction = rawAddress(source) === watchedRaw && rawAddress(destination) === watchedRaw
-    ? 'Self' : rawAddress(source) === watchedRaw ? 'Sent'
-      : rawAddress(destination) === watchedRaw ? 'Received' : 'Activity'
-  const heading = `${action.success === false ? '⚠️ Failed' : direction === 'Sent' ? '📤' : direction === 'Received' ? '📥' : '🔔'} <b>${escapeHtml(actionTitle(action))}</b> · ${direction}`
-  const tag = record?.tag ? String(record.tag).slice(0, 100) : shortAddress(watched)
-  const lines = [heading, `👁 ${linkAddress(watched, tag)}`]
-  if (source) lines.push(`From: ${linkAddress(source)}`)
-  if (destination) lines.push(`To: ${linkAddress(destination)}`)
+    ? 'Self' : rawAddress(source) === watchedRaw ? 'Send'
+      : rawAddress(destination) === watchedRaw ? 'Receive' : 'Activity'
+  const transfer = ['ton_transfer', 'jetton_transfer', 'nft_transfer'].includes(action.type)
+  const title = transfer && direction !== 'Activity' ? direction : actionTitle(action)
+  const icon = action.success === false ? '⚠️' : action.type === 'jetton_swap' ? '🔄'
+    : direction === 'Send' ? '📤' : direction === 'Receive' ? '📥' : '🔔'
+  const tag = record?.tag ? compactText(record.tag, 24) : shortAddress(watched)
+  const party = (address) => linkAddress(address, rawAddress(address) === watchedRaw ? tag : undefined)
+  let route = source && destination && rawAddress(source) !== rawAddress(destination)
+    ? `${party(source)} → ${party(destination)}` : party(source || destination || watched)
+  if ((source || destination) && ![rawAddress(source), rawAddress(destination)].includes(watchedRaw)) route = `${party(watched)} · ${route}`
+  const hash = action.transactions?.[0] || action.trace_id
+  const transaction = hash ? ` · <a href="https://tonscan.org/transaction/${encodeURIComponent(hash)}">tx ↗</a>` : ''
+  const heading = `${icon} <b>${action.success === false ? 'Failed · ' : ''}${escapeHtml(title)}</b> ${route}${transaction}`
+  const lines = [heading]
   const amount = amountText(action, metadata)
-  if (amount) lines.push(amount)
-  if (d.asset) lines.push(`Token: ${linkAddress(d.asset)}`)
-  if (d.asset_in) lines.push(`Input token: ${linkAddress(d.asset_in)}`)
-  if (d.asset_out) lines.push(`Output token: ${linkAddress(d.asset_out)}`)
-  if (d.nft_item) lines.push(`Item: ${linkAddress(d.nft_item)}`)
-  if (d.nft_collection) lines.push(`Collection: ${linkAddress(d.nft_collection)}`)
-  if (d.pool) lines.push(`Pool: ${linkAddress(d.pool)}`)
-  if (d.is_purchase && d.payout_amount) lines.push(`Seller payout: ${assetAmount(d.payout_amount, null, metadata)}`)
-  if (d.dex || d.provider) lines.push(`Service: ${escapeHtml(String(d.dex || d.provider).slice(0, 80))}`)
+  const details = [amount]
+  if (d.nft_collection) details.push(linkAddress(d.nft_collection, 'collection'))
+  if (d.is_purchase && d.payout_amount) details.push(`Seller payout: ${assetAmount(d.payout_amount, null, metadata)}`)
+  if (d.dex || d.provider) details.push(linkAddress(d.pool, compactText(d.dex || d.provider, 24)))
+  else if (d.pool && ![rawAddress(source), rawAddress(destination)].includes(rawAddress(d.pool))) details.push(linkAddress(d.pool, 'pool'))
+  if (details.some(Boolean)) lines.push(details.filter(Boolean).join(' · '))
   const comment = d.comment
   if (comment && !d.encrypted && !d.is_encrypted_comment) {
-    lines.push(`💬 ${escapeHtml(String(comment).slice(0, 500))}`)
+    lines.push(`💬 ${escapeHtml(compactText(comment, 160))}`)
   }
-  const hash = action.transactions?.[0] || action.trace_id
-  if (hash) lines.push(`<a href="https://tonscan.org/transaction/${encodeURIComponent(hash)}">Open transaction ↗</a>`)
   return lines.join('\n')
 }
 

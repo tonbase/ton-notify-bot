@@ -32,7 +32,7 @@ test('jetton transfer uses token decimals and escapes untrusted metadata', () =>
   }, transactions: ['hash'] }
   const metadata = { [TOKEN]: { token_info: [{ valid: true, symbol: '<USDT>', extra: { decimals: '6' } }] } }
   const text = formatAction(action, A, { tag: '<Owner>' }, metadata)
-  assert.match(text, /12\.345678 &lt;USDT&gt;/)
+  assert.match(text.replace(/<[^>]+>/g, ''), /12\.345678 &lt;USDT&gt;/)
   assert.match(text, /&lt;Owner&gt;/)
   assert.match(text, /&lt;script&gt;x&lt;\/script&gt;/)
   assert.equal(participants(action).includes(TOKEN), false)
@@ -41,7 +41,7 @@ test('jetton transfer uses token decimals and escapes untrusted metadata', () =>
 test('NFT transfer is associated with both owners', () => {
   const action = { type: 'nft_transfer', success: true, details: { old_owner: A, new_owner: B, nft_item: TOKEN } }
   assert.deepEqual(participants(action), [A, B])
-  assert.match(formatAction(action, B), /NFT transfer.*Received/)
+  assert.match(formatAction(action, B), /📥 <b>Receive<\/b>/)
 })
 
 test('minimum TON amount does not suppress jetton or NFT events', () => {
