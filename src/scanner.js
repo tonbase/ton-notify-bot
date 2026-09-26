@@ -10,6 +10,7 @@ const { TonCenter, RequestLimiter, sleep } = require('./toncenter')
 const { safeError, shutdownSignal, connectDatabase, workerLoop, health } = require('./runtime')
 
 const CURSOR_NAME = 'actions_scan_v1'
+const DELIVERY_COOLDOWN_NAME = 'telegram_delivery_cooldown_v1'
 
 function deliveryId(actionId, recipient) {
   return crypto.createHash('sha256').update(`${actionId}|${recipient}`).digest('hex')
@@ -404,7 +405,11 @@ async function sendPending(api, state = {}, { maxMessages = 100, chatId, batchSi
           last_error: safeError(error).slice(0, 300),
         }, $unset: { lease_until: 1 } })
         console.error(`Delivery retry in ${Math.round(wait / 1000)}s: ${safeError(error)}`)
-        if (code === 429) { state.cooldownUntil = Date.now() + wait; break }
+        if (code === 429) {
+          state.cooldownUntil = Math.max(state.cooldownUntil || 0, Date.now() + wait)
+          if (state.persistCooldown) await state.persistCooldown(state.cooldownUntil)
+          break
+        }
       }
     }
   }
@@ -441,6 +446,15 @@ async function sendPendingParallel(api, state = {}, { maxMessages = 100, batchSi
   return sent
 }
 
+async function loadDeliveryState() {
+  const saved = await Counter.findOne({ name: DELIVERY_COOLDOWN_NAME }).lean()
+  return {
+    cooldownUntil: Number(saved?.data?.untilMs) || 0,
+    persistCooldown: (until) => Counter.updateOne({ name: DELIVERY_COOLDOWN_NAME },
+      { $max: { 'data.untilMs': until } }, { upsert: true }),
+  }
+}
+
 async function main() {
   if (config.sendNotifications) requireBotToken()
   const signal = shutdownSignal()
@@ -461,12 +475,14 @@ async function main() {
     workerLoop('address-book', () => refreshAddressBook(), { signal, intervalMs: 3600000 })]
   if (config.sendNotifications) {
     const api = new Api(config.botToken, { timeoutSeconds: 30 })
-    const limiter = new RequestLimiter(25, 8)
+    // Telegram's free broadcast ceiling is approximate. Keep headroom so a
+    // short burst or concurrent bot replies does not trigger a long flood wait.
+    const limiter = new RequestLimiter(10, 8)
     const sender = {
       sendMessage: (...args) => limiter.run(() => api.sendMessage(...args)),
       sendRichMessage: (...args) => limiter.run(() => api.sendRichMessage(...args)),
     }
-    const deliveryState = {}
+    const deliveryState = await loadDeliveryState()
     workers.push(workerLoop('delivery', async () => ({ sent: await sendPendingParallel(sender, deliveryState, { batchSize: config.notificationBatchSize, concurrency: 8 }) }), { signal, intervalMs: 250 }))
   } else {
     await health('delivery', { status: 'disabled' })
@@ -477,4 +493,4 @@ async function main() {
 
 if (require.main === module) main().catch((error) => { console.error(safeError(error)); process.exit(1) })
 
-module.exports = { deliveryId, routeAction, routeEntries, scanBlock, scanCycle, reconcileTraces, sendPending, sendPendingParallel, loadWatched, channelEligible, shouldSuppress, rawFallbacks }
+module.exports = { deliveryId, routeAction, routeEntries, scanBlock, scanCycle, reconcileTraces, sendPending, sendPendingParallel, loadDeliveryState, loadWatched, channelEligible, shouldSuppress, rawFallbacks }

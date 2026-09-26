@@ -1,7 +1,29 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { Delivery, TraceTask, Address, User } = require('../src/models')
-const { sendPending, reconcileTraces, routeEntries } = require('../src/scanner')
+const { Delivery, TraceTask, Address, User, Counter } = require('../src/models')
+const { sendPending, reconcileTraces, routeEntries, loadDeliveryState } = require('../src/scanner')
+
+test('Telegram flood wait survives a scanner restart and pauses the shared sender', async (t) => {
+  let storedUntil = 0
+  t.mock.method(Counter, 'findOne', () => ({ lean: async () => storedUntil ? { data: { untilMs: storedUntil } } : null }))
+  t.mock.method(Counter, 'updateOne', async (_filter, update) => { storedUntil = Math.max(storedUntil, update.$max['data.untilMs']) })
+  let claimed = false
+  t.mock.method(Delivery, 'findOneAndUpdate', async () => {
+    if (claimed) return null
+    claimed = true
+    return { _id: 'first', chat_id: 123, text: 'Event', attempts: 1 }
+  })
+  t.mock.method(Delivery, 'updateOne', async () => {})
+  const state = await loadDeliveryState()
+  await sendPending({ sendMessage: async () => { throw { error_code: 429, parameters: { retry_after: 286 } } } }, state)
+  assert(storedUntil > Date.now() + 285000)
+  const restarted = await loadDeliveryState()
+  assert.equal(restarted.cooldownUntil, storedUntil)
+  let resumed = false
+  const sent = await sendPending({ sendMessage: async () => { resumed = true } }, restarted)
+  assert.equal(sent, 0)
+  assert.equal(resumed, false)
+})
 
 test('Telegram 429 persists retry and stops the entire sender until retry_after', async (t) => {
   const updates = []
