@@ -30,6 +30,25 @@ test('NFT purchase direction uses real seller and distinguishes payout from pric
   } }, A)
   assert.match(text, /^📤 <b>Sold · /)
   assert.match(text, /Seller payout: 5 GRAM/)
+  const purchase = { type: 'nft_transfer', success: true, transactions: ['hash'], details: {
+    real_old_owner: A, new_owner: T, is_purchase: true, price: '6000000000', payout_amount: '5000000000',
+  } }
+  const buyer = formatAction(purchase, T)
+  assert.match(buyer, /Price: 6 GRAM/)
+  assert(!buyer.includes('Seller payout'))
+  purchase.details.payout_amount = null
+  assert(!formatAction(purchase, A).includes('Seller payout'))
+})
+
+test('auction bids use native decimals and DNS changes do not print record objects as amounts', () => {
+  const bid = { type: 'auction_bid', transactions: ['hash'], details: { bidder: A, auction: T, amount: '10000000000' } }
+  assert(participants(bid).includes(A))
+  assert.match(plain(formatAction(bid, A)), /Bid · 10 GRAM/)
+  const dns = formatAction({ type: 'change_dns', transactions: ['hash'], details: {
+    source: A, asset: T, value: { sum_type: 'DNSAdnlAddress' },
+  } }, A, null, { [T]: { token_info: [{ name: 'example.ton' }] } })
+  assert.match(plain(dns), /DNS updated · example.ton/)
+  assert(!dns.includes('[object Object]'))
 })
 
 test('notifications show a short quote without mutating references or implying a purchase', () => {

@@ -22,7 +22,7 @@ function participants(action) {
     details.old_owner, details.new_owner, details.real_old_owner,
     details.owner, details.account, details.contract, details.payer,
     details.beneficiary,
-    details.stake_holder, details.pool, details.subscriber,
+    details.stake_holder, details.pool, details.subscriber, details.bidder, details.auction,
     ...(Array.isArray(action.accounts) ? action.accounts : []),
   ]
   return [...new Set(values.map(rawAddress).filter(Boolean))]
@@ -70,6 +70,11 @@ function amountText(action, metadata) {
   if (action.type === 'stake_withdrawal_request') {
     return details.amount !== undefined ? assetAmount(details.amount, details.asset, metadata) : ''
   }
+  if (action.type === 'auction_bid') return assetAmount(details.amount, null, metadata)
+  if (['change_dns', 'delete_dns', 'renew_dns'].includes(action.type)) {
+    const domain = metadataFor(metadata, details.asset)
+    return domain?.name ? linkAddress(details.asset, compactText(domain.name, 40)) : ''
+  }
   if (details.value !== undefined && /^\d+$/.test(String(details.value))) {
     return BigInt(details.value) === 0n ? '' : `💎 ${assetAmount(details.value, null, metadata)}`
   }
@@ -81,13 +86,16 @@ function actionTitle(action) {
   const titles = {
     ton_transfer: 'GRAM transfer', jetton_transfer: 'Jetton transfer',
     nft_transfer: 'NFT transfer', jetton_mint: 'Mint', jetton_burn: 'Burn',
-    nft_mint: 'Mint', jetton_swap: 'Swap', contract_deploy: 'Deploy',
+    nft_mint: 'NFT minted', jetton_swap: 'Swap', contract_deploy: 'Deploy',
     call_contract: 'Contract call', stake_deposit: 'Stake',
-    stake_withdrawal: 'Unstake', stake_withdrawal_request: 'Request unstake',
+    stake_withdrawal: 'Unstake', stake_withdrawal_request: 'Unstake requested',
     dex_deposit_liquidity: 'Add liquidity', dex_withdraw_liquidity: 'Remove liquidity',
     election_deposit: 'Validator deposit', election_recover: 'Validator withdrawal',
     raw_message: 'Blockchain message',
     account_update: 'Account update',
+    auction_bid: 'Bid', change_dns: 'DNS updated', delete_dns: 'DNS record deleted',
+    renew_dns: 'Domain renewed', tick_tock: 'System operation',
+    subscribe: 'Subscription', unsubscribe: 'Subscription cancelled',
   }
   return titles[action.type] || compactText(String(action.type || 'Blockchain event').replaceAll('_', ' '), 40)
 }
@@ -140,6 +148,10 @@ function eventIcon(action, direction) {
     call_contract: { emoji: '⚙️', customId: '5372925742797574389' },
     account_update: { emoji: '⚙️', customId: '5372925742797574389' },
     raw_message: { emoji: '📨', customId: '5373162670373491228' },
+    change_dns: { emoji: '⚙️', customId: '5372925742797574389' },
+    delete_dns: { emoji: '➖', customId: '5370621922339999779' },
+    renew_dns: { emoji: '🔄', customId: '5373124754402203769' },
+    tick_tock: { emoji: '⚙️', customId: '5372925742797574389' },
   }
   return icons[action.type] || { emoji: '🔔', customId: '5370648903324554299' }
 }
@@ -148,9 +160,10 @@ function formatNotification(action, watched, record, metadata = {}) {
   const d = action.details || {}
   const stakingIn = ['stake_deposit', 'stake_withdrawal_request'].includes(action.type)
   const stakingOut = action.type === 'stake_withdrawal'
-  const source = (action.type === 'nft_transfer' ? d.real_old_owner : null) || d.source || d.sender || d.old_owner
+  const source = (action.type === 'nft_transfer' ? d.real_old_owner : null) || d.source || d.sender || d.old_owner || d.bidder
     || (action.type === 'jetton_burn' ? d.owner : stakingIn ? d.stake_holder : stakingOut ? d.pool : null)
-  const destination = d.destination || d.receiver || d.new_owner
+  const destination = d.destination || d.receiver || d.new_owner || d.auction
+    || (['change_dns', 'delete_dns', 'renew_dns'].includes(action.type) ? d.asset : null)
     || (action.type === 'nft_mint' ? d.owner : stakingIn ? d.pool : stakingOut ? d.stake_holder : null)
   const watchedRaw = rawAddress(watched)
   const direction = rawAddress(source) === watchedRaw && rawAddress(destination) === watchedRaw
@@ -169,8 +182,9 @@ function formatNotification(action, watched, record, metadata = {}) {
   if (direction === 'Self') route += ' · Self'
   if (d.dex || d.provider) {
     const service = String(d.dex || d.provider)
+    const providers = { liquid_staking: 'Liquid staking', ethena: 'Ethena', tonco: 'TONCO' }
     const label = /^stonfi(?:_v\d+)?$/i.test(service) ? 'STON.fi'
-      : /^dedust(?:_v\d+)?$/i.test(service) ? 'DeDust' : compactText(service, 20)
+      : /^dedust(?:_v\d+)?$/i.test(service) ? 'DeDust' : providers[service] || compactText(service, 20)
     route = `${party(watched)} · ${linkAddress(d.pool, label)}`
   }
   const hash = action.transactions?.[0] || action.trace_id
@@ -203,8 +217,11 @@ function formatNotification(action, watched, record, metadata = {}) {
   const lines = [`${icon.emoji} ${headline}`, `${route}${transaction}`]
   const details = []
   // The NFT name opens its item page, which also exposes the collection.
-  if (d.nft_collection && !d.nft_item) details.push(linkAddress(d.nft_collection, 'Collection'))
-  if (action.success !== false && d.is_purchase && d.payout_amount !== undefined) details.push(`Seller payout: ${assetAmount(d.payout_amount, null, metadata)}`)
+  if (['nft_transfer', 'nft_mint'].includes(action.type) && d.nft_collection && !d.nft_item) details.push(linkAddress(d.nft_collection, 'Collection'))
+  if (action.success !== false && d.is_purchase) {
+    if (direction === 'Send' && d.payout_amount != null) details.push(`Seller payout: ${assetAmount(d.payout_amount, null, metadata)}`)
+    else if (d.price != null) details.push(`Price: ${assetAmount(d.price, null, metadata)}`)
+  }
   if (d.pool && !d.dex && !d.provider && ![rawAddress(source), rawAddress(destination)].includes(rawAddress(d.pool))) details.push(linkAddress(d.pool, 'Pool'))
   const comment = d.comment && !d.encrypted && !d.is_encrypted_comment ? String(d.comment) : ''
   // Only presentation is shortened. Filters keep the original comment, and the
