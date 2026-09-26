@@ -1,5 +1,5 @@
 const { rawAddress, friendlyAddress, shortAddress } = require('./address')
-const { formatUnits, formatDisplayUnits } = require('./amount')
+const { formatDisplayUnits } = require('./amount')
 
 // Official USDt master: https://tether.to/en/supported-protocols/
 const USDT_MASTER = rawAddress('EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs')
@@ -28,15 +28,15 @@ function participants(action) {
   return [...new Set(values.map(rawAddress).filter(Boolean))]
 }
 
-function assetAmount(amount, asset, metadata, knownTon = false, compact = false) {
-  if (knownTon || asset === null) return `${escapeHtml(compact ? formatDisplayUnits(amount || '0') : formatUnits(amount || '0'))} ${assetLabel(null, 'GRAM')}`
+function assetAmount(amount, asset, metadata) {
+  if (asset === null) return `${assetIcon(null)}${escapeHtml(formatDisplayUnits(amount || '0'))} GRAM`
   const token = metadataFor(metadata, asset)
   const decimalsValue = token?.extra?.decimals ?? token?.decimals
   const decimals = decimalsValue === undefined ? null : Number(decimalsValue)
   const symbol = compactText(token?.symbol || token?.name || 'jetton', 24)
   const quantity = Number.isInteger(decimals) && decimals >= 0 && decimals <= 30
-    ? (compact ? formatDisplayUnits(amount || '0', decimals) : formatUnits(amount || '0', decimals, decimals)) : `${amount || '0'} base units`
-  return `${escapeHtml(quantity)} ${assetLabel(asset, symbol)}`
+    ? formatDisplayUnits(amount || '0', decimals) : `${amount || '0'} base units`
+  return `${assetIcon(asset)}${escapeHtml(quantity)} ${linkAddress(asset, symbol)}`
 }
 
 function amountText(action, metadata) {
@@ -56,7 +56,7 @@ function amountText(action, metadata) {
   if (action.type === 'jetton_swap') {
     const incoming = details.dex_incoming_transfer
     const outgoing = details.dex_outgoing_transfer
-    if (incoming && outgoing) return `${assetAmount(incoming.amount, incoming.asset, metadata, false, true)} → ${assetAmount(outgoing.amount, outgoing.asset, metadata, false, true)}`
+    if (incoming && outgoing) return `${assetAmount(incoming.amount, incoming.asset, metadata)} → ${assetAmount(outgoing.amount, outgoing.asset, metadata)}`
     return incoming ? `Out: ${assetAmount(incoming.amount, incoming.asset, metadata)}`
       : outgoing ? `In: ${assetAmount(outgoing.amount, outgoing.asset, metadata)}` : ''
   }
@@ -71,7 +71,7 @@ function amountText(action, metadata) {
     return details.amount !== undefined ? assetAmount(details.amount, details.asset, metadata) : ''
   }
   if (details.value !== undefined && /^\d+$/.test(String(details.value))) {
-    return `💎 ${assetAmount(details.value, null, metadata)}`
+    return BigInt(details.value) === 0n ? '' : `💎 ${assetAmount(details.value, null, metadata)}`
   }
   if (details.amount !== undefined) return `Amount: ${escapeHtml(details.amount)} base units`
   return ''
@@ -103,13 +103,17 @@ function linkAddress(address, label) {
   return `<a href="https://tonscan.org/address/${encodeURIComponent(friendly)}">${escapeHtml(label || shortAddress(address))}</a>`
 }
 
-function assetLabel(asset, symbol) {
+function assetIcon(asset) {
   // Only the two selected assets from https://t.me/addemoji/CryptoBotAssets.
   // Match USDt by its master contract, never by an untrusted ticker.
   const icon = asset === null ? { id: '5318901904686754959', emoji: '💎' }
     : rawAddress(asset) === USDT_MASTER ? { id: '5406841020769936275', emoji: '💵' } : null
-  const label = asset === null ? escapeHtml(symbol) : linkAddress(asset, symbol)
-  return icon ? `<tg-emoji emoji-id="${icon.id}">${icon.emoji}</tg-emoji> ${label}` : label
+  return icon ? `<tg-emoji emoji-id="${icon.id}">${icon.emoji}</tg-emoji> ` : ''
+}
+
+function signedAmount(amount, sign) {
+  const icon = amount.match(/^<tg-emoji\b[^>]*>.*?<\/tg-emoji> /u)?.[0] || ''
+  return `${icon}${sign}${amount.slice(icon.length)}`
 }
 
 function eventIcon(action, direction) {
@@ -122,13 +126,22 @@ function eventIcon(action, direction) {
   }
   if (action.type === 'jetton_swap') return { emoji: '🔄', customId: '5373124754402203769' }
   const icons = {
-    jetton_mint: '✨', nft_mint: '✨', jetton_burn: '🔥',
-    stake_deposit: '🔒', election_deposit: '🔒', stake_withdrawal_request: '⏳',
-    stake_withdrawal: '🔓', election_recover: '🔓',
-    dex_deposit_liquidity: '➕', dex_withdraw_liquidity: '➖',
-    contract_deploy: '🛠️', call_contract: '⚙️', account_update: '⚙️', raw_message: '📨',
+    jetton_mint: { emoji: '✨', customId: '5373351343991836952' },
+    nft_mint: { emoji: '✨', customId: '5373351343991836952' },
+    jetton_burn: { emoji: '🔥', customId: '5370621922339999779' },
+    stake_deposit: { emoji: '🔒', customId: '5371026297805888196' },
+    election_deposit: { emoji: '🔒', customId: '5371026297805888196' },
+    stake_withdrawal_request: { emoji: '⏳', customId: '5372839044587739624' },
+    stake_withdrawal: { emoji: '🔓', customId: '5372989093565189720' },
+    election_recover: { emoji: '🔓', customId: '5372989093565189720' },
+    dex_deposit_liquidity: { emoji: '➕', customId: '5373351343991836952' },
+    dex_withdraw_liquidity: { emoji: '➖', customId: '5370621922339999779' },
+    contract_deploy: { emoji: '🛠️', customId: '5372925742797574389' },
+    call_contract: { emoji: '⚙️', customId: '5372925742797574389' },
+    account_update: { emoji: '⚙️', customId: '5372925742797574389' },
+    raw_message: { emoji: '📨', customId: '5373162670373491228' },
   }
-  return { emoji: icons[action.type] || '🔔' }
+  return icons[action.type] || { emoji: '🔔', customId: '5370648903324554299' }
 }
 
 function formatNotification(action, watched, record, metadata = {}) {
@@ -166,14 +179,20 @@ function formatNotification(action, watched, record, metadata = {}) {
   const amount = amountText(action, metadata).replace(/^(?:💎|🪙|🖼)\s*/u, '')
   let headline
   if (action.success === false) {
-    headline = `<b>Failed · ${transfer ? amount || escapeHtml(actionTitle(action)) : escapeHtml(actionTitle(action)) + (amount ? ` · ${amount}` : '')}</b>`
+    const label = transfer ? `${action.type === 'nft_transfer' ? 'NFT transfer' : 'Transfer'} failed`
+      : `${actionTitle(action)} failed`
+    // An outgoing swap leg in a failed action must not look like a completed receipt.
+    const attempted = action.type === 'jetton_swap' ? (d.dex_incoming_transfer
+      ? assetAmount(d.dex_incoming_transfer.amount, d.dex_incoming_transfer.asset, metadata) : '') : amount
+    headline = `<b>${escapeHtml(label)}${attempted ? ` · ${attempted}` : ''}</b>`
   } else if (transfer) {
     const sign = direction === 'Send' ? '−' : direction === 'Receive' ? '+' : ''
     if (action.type === 'nft_transfer') {
       const purchase = d.is_purchase && ['Send', 'Receive'].includes(direction)
         ? `${direction === 'Send' ? 'Sold' : 'Bought'} · ` : ''
-      headline = `${purchase ? '' : sign ? `${sign} ` : ''}<b>${purchase}${amount}</b>`
-    } else headline = `<b>${sign}${amount}</b>`
+      const kind = amount.replace(/<[^>]*>/g, '') === 'NFT' ? '' : 'NFT · '
+      headline = `<b>${purchase || kind}${amount}</b>`
+    } else headline = `<b>${signedAmount(amount, sign)}</b>`
   } else if (action.type === 'jetton_swap') {
     const exchange = amount.replace(/<[^>]*>/g, '').length > 38 ? amount.replace(' → ', '\n→ ') : amount
     headline = `<b>${exchange || 'Swap'}</b>`
@@ -185,7 +204,7 @@ function formatNotification(action, watched, record, metadata = {}) {
   const details = []
   // The NFT name opens its item page, which also exposes the collection.
   if (d.nft_collection && !d.nft_item) details.push(linkAddress(d.nft_collection, 'Collection'))
-  if (d.is_purchase && d.payout_amount !== undefined) details.push(`Seller payout: ${assetAmount(d.payout_amount, null, metadata)}`)
+  if (action.success !== false && d.is_purchase && d.payout_amount !== undefined) details.push(`Seller payout: ${assetAmount(d.payout_amount, null, metadata)}`)
   if (d.pool && !d.dex && !d.provider && ![rawAddress(source), rawAddress(destination)].includes(rawAddress(d.pool))) details.push(linkAddress(d.pool, 'Pool'))
   const comment = d.comment && !d.encrypted && !d.is_encrypted_comment ? String(d.comment) : ''
   // Only presentation is shortened. Filters keep the original comment, and the

@@ -41,7 +41,8 @@ test('jetton transfer uses token decimals and escapes untrusted metadata', () =>
 test('NFT transfer is associated with both owners', () => {
   const action = { type: 'nft_transfer', success: true, transactions: ['hash'], details: { old_owner: A, new_owner: B, nft_item: TOKEN } }
   assert.deepEqual(participants(action), [A, B])
-  assert.match(formatAction(action, B), /^📥 \+ <b>/)
+  assert.match(formatAction(action, B), /^📥 <b>/)
+  assert(!formatAction(action, B).includes('+'))
   assert.match(formatNotification(action, B).richHtml, /^<p><tg-emoji emoji-id="5372835488354815966">📥<\/tg-emoji>/)
 })
 
