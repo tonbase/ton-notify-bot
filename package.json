@@ -12,6 +12,7 @@
     "smoke:recovery": "node scripts/recovery-smoke.js",
     "health": "node scripts/health.js",
     "design": "node scripts/design-lab.js",
+    "live": "node scripts/live-lab.js --start",
     "test": "node --test test/*.test.js",
     "check": "node --check src/bot.js && node --check src/scanner.js && node --test test/*.test.js"
   },

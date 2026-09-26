@@ -261,7 +261,8 @@ async function scanCycle(client, state = {}) {
   return state
 }
 
-async function sendPending(api, state = {}) {
+async function sendPending(api, state = {}, { maxMessages = 100, chatId } = {}) {
+  if (!Number.isSafeInteger(maxMessages) || maxMessages < 1) throw new Error('Invalid delivery batch size')
   let sent = 0
   if (state.cooldownUntil > Date.now()) return sent
   state.chats ||= new Map()
@@ -269,6 +270,7 @@ async function sendPending(api, state = {}) {
   for (let examined = 0; examined < 100; examined += 1) {
     const now = new Date()
     const delivery = await Delivery.findOneAndUpdate({
+      ...(chatId === undefined ? {} : { chat_id: chatId }),
       status: { $in: ['pending', 'sending'] },
       next_attempt_at: { $lte: now },
       $or: [{ status: 'pending' }, { lease_until: { $lte: now } }],
@@ -303,6 +305,7 @@ async function sendPending(api, state = {}) {
         catch (error) { console.error(`Could not update address counter: ${safeError(error)}`) }
       }
       await sleep(40)
+      if (sent >= maxMessages) break
     } catch (error) {
       const code = error.error_code || error.error?.error_code
       if (code === 403 || code === 400) {

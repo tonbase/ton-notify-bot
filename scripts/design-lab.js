@@ -3,6 +3,7 @@ const path = require('node:path')
 const { randomBytes } = require('node:crypto')
 const { Bot, InlineKeyboard } = require('grammy')
 const { REVISION, DESIGNS, CASES, renderDesign } = require('../src/designs')
+const { readLive, stopLive, liveStatus } = require('../src/live-control')
 
 const directory = path.join(__dirname, '..', '.local', 'design-lab')
 const envFile = path.join(__dirname, '..', '.env.design')
@@ -101,6 +102,13 @@ function createLab(owner, state, persist, botToken = token, botInfo, pairing = {
   })
   bot.command(['start', 'designs'], () => sendGallery())
   bot.command('again', () => sendGallery(true))
+  bot.command('live_stop', async (ctx) => { stopLive(); await ctx.reply('Останавливаю реальные уведомления.') })
+  bot.command('live_status', (ctx) => ctx.reply(liveStatus()))
+  bot.callbackQuery('live:stop', async (ctx) => {
+    stopLive()
+    await ctx.answerCallbackQuery({ text: 'Поток остановлен' })
+    await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } })
+  })
   bot.command('results', (ctx) => {
     const votes = Object.entries(state.votes).filter(([id]) => id.startsWith(`${REVISION}:`))
     const rows = votes.map(([id, vote]) => {
@@ -142,6 +150,13 @@ function createLab(owner, state, persist, botToken = token, botInfo, pairing = {
   })
   bot.on('message:text', async (ctx) => {
     const replyId = ctx.message.reply_to_message?.message_id
+    const liveSession = readLive('control.json')?.session
+    if (liveSession && /^[a-f0-9]{8}$/.test(liveSession) && readLive(`session-${liveSession}.json`)?.messages?.[replyId]) {
+      state.notes.push({ source: 'live', liveSession, messageId: replyId, text: ctx.message.text, at: new Date().toISOString() })
+      event('note', { source: 'live' })
+      await ctx.reply('Сохранил замечание к реальному уведомлению.')
+      return
+    }
     const target = state.notePrompts?.[replyId] || state.messages[replyId] || state.pendingNote || null
     state.notes.push({ revision: target?.revision || REVISION, ...(target ? { designId: target.designId, caseId: target.caseId } : {}),
       text: ctx.message.text, at: new Date().toISOString() })

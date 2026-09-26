@@ -23,9 +23,15 @@ Save a separate test bot token as `DESIGN_BOT_TOKEN` in the ignored `.env.design
 
 If Telegram no longer has that `/start` update, simply run `npm run design`: it prints a private one-time pairing link. Open the link and press Start. The lab records that sender and automatically sends the gallery; unrelated plain `/start` messages cannot claim the lab. The pairing link and owner registration live only in the ignored local folder.
 
-The lab sends eight design directions, including native Telegram Rich Messages with collapsible details, compact tables, headings and embedded buttons. Switch between five synthetic examples using the buttons below each message. Vote like/dislike/finalist or leave a reply. Votes, comments, message IDs and registration remain in `.local/design-lab/`; none are published. `/results` displays saved votes, `/designs` sends missing designs, and `/again` resends the set. These controls are for design review, separate from the production scanner. The bot process must remain running to receive feedback.
+The lab sends the current design round, including native Telegram Rich Messages. Cycle through five synthetic examples using the last button below each message. Vote like/dislike/finalist or leave a reply. Votes, comments, message IDs and registration remain in `.local/design-lab/`; none are published. `/results` displays saved votes, `/designs` sends missing designs, and `/again` resends the set. These controls are for design review, separate from the production scanner. The bot process must remain running to receive feedback.
 
 Rich formatting uses the official [`sendRichMessage` API](https://core.telegram.org/bots/api#sendrichmessage). A successful API response confirms delivery; appearance and client support still need review in Telegram.
+
+### Real notifications in the private test chat
+
+With the design lab running and MongoDB listening on `127.0.0.1:27018`, run `npm run live`. This explicitly enables a bounded live session using the registered owner and `.env.design` token. It sends four recent real operations (TON, jetton, NFT, swap), then scans new blocks for those public addresses. It reuses the scanner, trace reconciliation and durable delivery queue, with a separate local `ton-notify-live-*` database. Production environment settings and services are unchanged.
+
+Delivery is restricted to the registered private chat: up to 30 notifications, at least 20 seconds apart, for at most one hour. `/live_stop` or the introductory stop button ends the session; `/live_status` reports progress. Replies to real notifications are saved as feedback. Only the design lab polls Telegram updates; the live scanner only sends messages. Runtime state, public address selection and message history stay in ignored `.local/live-lab/`. To resume an interrupted session without selecting new addresses, run `node scripts/live-lab.js` without `--start` while its control remains enabled and unexpired.
 
 ### Automated checks
 
