@@ -6,16 +6,16 @@ Telegram bot on [grammY](https://grammy.dev/) with a [TON Center v3](https://ton
 
 1. Install Node.js 22 or newer and MongoDB. Run `npm ci`.
 2. Copy `.env.example` to `.env`. Select a local development database and set `TON_INDEX_API_KEY`. Environment files and `.local/` are ignored by Git.
-3. Run `npm run inspect` to discover recent public TON, jetton and NFT activity. Pass addresses explicitly with `npm run inspect -- <address>`.
+3. Run `npm run inspect` to discover recent public GRAM, jetton and NFT activity. Pass addresses explicitly with `npm run inspect -- <address>`.
 4. Run `npm test` and the integration checks below.
 5. Run `npm run scan`. With `SEND_NOTIFICATIONS=false`, this scans and queues notifications without contacting Telegram; no bot token is required.
 6. To test Telegram interactively, set a separate test bot's `BOT_TOKEN`, set `SEND_NOTIFICATIONS=true`, and run `npm start` in a second terminal. Do not run two pollers using the same token.
 
-The bot preserves address management, tags, minimum TON amounts, exact comment inclusion/exclusion filters, deletion/undo, and address sharing. The minimum TON setting does not suppress jetton or NFT actions.
+The bot preserves address management, tags, minimum GRAM amounts, exact comment inclusion/exclusion filters, deletion/undo, and address sharing. The minimum GRAM setting does not suppress jetton or NFT actions.
 
-Notifications use ordinary HTML text: amount or NFT on the first line, short participants and a `tx` link on the next, and an optional quoted comment. Display tags are limited to 16 characters and comment excerpts to 48. A trailing payment reference is omitted from the excerpt when a transaction link is available; the full comment and exact amounts remain accessible there. NFT names link to their item pages and collections. Successful incoming/outgoing transfers use plus/minus signs; failed and self transfers do not imply a balance change. Long swap quantities are rounded for display with an explicit approximation sign, preserving small nonzero values and integer precision. Stored tags and exact-match filters keep their original values. Telegram may wrap long lines on narrow screens.
+Notifications use one rich text paragraph: amount or NFT on the first line, short participants and a native inline `tx` URL button on the next, and an optional quoted comment. Display tags are limited to 16 characters and comment excerpts to 48. A trailing payment reference is omitted from the excerpt when a transaction link is available; the full comment and exact amounts remain accessible there. NFT names link to their item pages and collections. Successful incoming/outgoing transfers use plus/minus signs; failed and self transfers do not imply a balance change. Long swap quantities are rounded for display with an explicit approximation sign, preserving small nonzero values and integer precision. Stored tags and exact-match filters keep their original values. Telegram may wrap long lines on narrow screens.
 
-New notifications use plain HTML. The delivery queue can still read older entries with optional rich HTML. An explicit Telegram 400 rejection of those rich entries falls back to the plain message; timeouts and ambiguous failures use the usual retry path.
+Native coin amounts use the GRAM ticker. TON remains the blockchain name, and provider names, API action types and configuration keys keep their existing identifiers. The delivery queue stores rich HTML with a plain HTML fallback. An explicit Telegram 400 rejection falls back to the plain message; timeouts and ambiguous failures use the usual retry path.
 
 ## Checks
 
@@ -31,7 +31,7 @@ Rich formatting uses the official [`sendRichMessage` API](https://core.telegram.
 
 ### Real notifications in the private test chat
 
-With the design lab running and MongoDB listening on `127.0.0.1:27018`, run `npm run live`. This explicitly enables a bounded live session using the registered owner and `.env.design` token. It sends four recent real operations (TON, jetton, NFT, swap), then scans new blocks for those public addresses. It reuses the scanner, trace reconciliation and durable delivery queue, with a separate local `ton-notify-live-*` database. Production environment settings and services are unchanged.
+With the design lab running and MongoDB listening on `127.0.0.1:27018`, run `npm run live`. This explicitly enables a bounded live session using the registered owner and `.env.design` token. It sends four recent real operations (GRAM, jetton, NFT, swap), then scans new blocks for those public addresses. Test addresses use shortened addresses without generated tags. It reuses the scanner, trace reconciliation and durable delivery queue, with a separate local `ton-notify-live-*` database. Production environment settings and services are unchanged.
 
 Delivery is restricted to the registered private chat: up to 30 notifications, at least 20 seconds apart, for at most one hour. `/live_stop` or the introductory stop button ends the session; `/live_status` reports progress. Replies to real notifications are saved as feedback. Only the design lab polls Telegram updates; the live scanner only sends messages. Runtime state, public address selection and message history stay in ignored `.local/live-lab/`. To resume an interrupted session without selecting new addresses, run `node scripts/live-lab.js` without `--start` while its control remains enabled and unexpired.
 
@@ -45,7 +45,7 @@ Delivery is restricted to the registered private chat: up to 30 notifications, a
 
 ## Scanner behavior
 
-The scanner fully paginates `/actions` and `/transactionsByMasterchainBlock`. Notifications include direction, participants, tags, escaped comments and explorer links. TON, jetton transfer/mint/burn, NFT transfer/mint, swaps, staking and liquidity actions have dedicated formatting. Jetton quantities use metadata decimals; missing decimals are explicitly shown as base units. Other classified actions retain their type and available participants/amounts.
+The scanner fully paginates `/actions` and `/transactionsByMasterchainBlock`. Notifications include direction, participants, tags, escaped comments and explorer links. GRAM, jetton transfer/mint/burn, NFT transfer/mint, swaps, staking and liquidity actions have dedicated formatting. Jetton quantities use metadata decimals; missing decimals are explicitly shown as base units. Other classified actions retain their type and available participants/amounts.
 
 Transactions for watched accounts are also registered in a persistent trace queue. `/traces` reconciliation waits for a complete trace, fetches all its classified actions, and emits generic messages/account changes for uncovered transactions. Incomplete or not-yet-classified traces remain pending across restarts. Thus a trace spanning several blocks does not immediately become a misleading raw transfer. Provider classification availability still determines when those details can be shown.
 
@@ -66,8 +66,8 @@ Delivery is at least once: a crash or network timeout after Telegram accepts a m
 | `SCAN_LAG_BLOCKS` | Delay behind the indexer tip, default 16 blocks |
 | `SCAN_REPLAY_BLOCKS` | Recent-block replay window, default 120; persistent trace tasks handle unresolved watched transactions |
 | `SCAN_PAGE_SIZE` | Pagination size, maximum 1000 |
-| `NOTIFICATIONS_CHANNEL_ID` | Optional large-TON-transfer channel |
-| `MIN_TRANSACTION_AMOUNT` | Minimum TON value for that channel |
+| `NOTIFICATIONS_CHANNEL_ID` | Optional large-GRAM-transfer channel |
+| `MIN_TRANSACTION_AMOUNT` | Minimum GRAM value for that channel |
 
 If the new cursor is absent and no start block is specified, the scanner resumes from the legacy `lastCheckedBlock` counter, or starts at the current indexed tip for an empty database. A stale legacy cursor can create a large backfill and many old notifications. Choose the intended starting point before rollout.
 

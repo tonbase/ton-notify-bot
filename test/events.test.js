@@ -44,7 +44,7 @@ test('NFT transfer is associated with both owners', () => {
   assert.match(formatAction(action, B), /^\+ <b>/)
 })
 
-test('minimum TON amount does not suppress jetton or NFT events', () => {
+test('minimum GRAM amount does not suppress jetton or NFT events', () => {
   const record = { notifications: { is_enabled: true, min_amount: '1000000000', exceptions: [], inclusion: [] } }
   assert.equal(passesFilters(record, { type: 'ton_transfer', details: { value: '1' } }), false)
   assert.equal(passesFilters(record, { type: 'jetton_transfer', details: { amount: '1' } }), true)

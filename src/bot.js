@@ -47,7 +47,7 @@ async function showList(ctx, page = 0, edit = false) {
   ctx.session.flow = null
   const filter = { user_id: ctx.from.id, is_deleted: false }
   const count = await Address.countDocuments(filter)
-  if (!count) return reply(ctx, '😔 You have no addresses added. Send me a TON address or <code>address:tag</code>.', null, edit)
+  if (!count) return reply(ctx, '😔 You have no addresses added. Send me an address or <code>address:tag</code>.', null, edit)
   const pages = Math.ceil(count / PAGE_SIZE)
   const safePage = Math.min(Math.max(Number(page) || 0, 0), pages - 1)
   const addresses = await Address.find(filter).sort({ _id: 1 }).skip(safePage * PAGE_SIZE).limit(PAGE_SIZE)
@@ -68,7 +68,7 @@ function notificationsKeyboard(record) {
   const min = String(n.min_amount || '0')
   return new InlineKeyboard()
     .text(`Send notifications: ${n.is_enabled ? 'Yes' : 'No'}`, `notify_${record.id}_${n.is_enabled ? 'off' : 'on'}`).row()
-    .text(`Min. amount: ${min === '0' ? 'OFF' : `${formatUnits(min)} TON`}`, `notify_min_amout_${record.id}`).row()
+    .text(`Min. amount: ${min === '0' ? 'OFF' : `${formatUnits(min)} GRAM`}`, `notify_min_amout_${record.id}`).row()
     .text((n.exceptions?.length || n.inclusion?.length) ? 'Edit exceptions' : 'Add exceptions', `notify_exceptions_${record.id}`).row()
     .text('« Back to Address', `open_${record.id}`)
 }
@@ -96,7 +96,7 @@ async function showAddress(ctx, record, edit = false) {
 
 async function addAddress(ctx, input) {
   const parsed = parseAddressInput(input)
-  if (!parsed) return reply(ctx, 'Invalid TON address. Send a valid address, optionally followed by <code>:tag</code>.')
+  if (!parsed) return reply(ctx, 'Invalid address. Send a valid address, optionally followed by <code>:tag</code>.')
   const existing = await Address.find({ user_id: ctx.from.id })
   let record = existing.find((entry) => rawAddress(entry.address) === rawAddress(parsed.address))
   if (!record) {
@@ -140,7 +140,7 @@ async function handleFlow(ctx, text) {
   }
   if (flow === 'amount') {
     const nano = toNano(text.trim())
-    if (nano === null) return reply(ctx, 'Invalid amount. Send a non-negative TON value with at most 9 decimal places.')
+    if (nano === null) return reply(ctx, 'Invalid amount. Send a non-negative GRAM value with at most 9 decimal places.')
     record.notifications.min_amount = nano
     await record.save()
     ctx.session.flow = null
@@ -165,7 +165,7 @@ function createBot(token = config.botToken, botInfo) {
 
   bot.on('inline_query', async (ctx) => {
     const parsed = parseAddressInput(ctx.inlineQuery.query)
-    const results = parsed ? [{ type: 'article', id: 'address', title: 'Share TON address',
+    const results = parsed ? [{ type: 'article', id: 'address', title: 'Share address',
       description: parsed.address, input_message_content: { message_text: parsed.address },
       reply_markup: new InlineKeyboard().url('Track address', `https://t.me/${ctx.me.username}?start=${friendlyAddress(parsed.address)}`),
     }] : []
@@ -199,7 +199,7 @@ function createBot(token = config.botToken, botInfo) {
     const payload = ctx.message?.text?.replace(/^\/start(?:@\w+)?\s*/, '').trim()
     if (payload) return addAddress(ctx, payload)
     ctx.session.flow = null
-    return reply(ctx, 'I send notifications about activity of TON addresses.\n\nSend me an address like <code>address:tag</code> to track it.\n\n/list — manage your alerts\n\nPowered by @tonbase.')
+    return reply(ctx, 'I send notifications about blockchain activity of your addresses.\n\nSend me an address like <code>address:tag</code> to track it.\n\n/list — manage your alerts\n\nPowered by @tonbase.')
   })
   bot.command('list', (ctx) => showList(ctx))
   bot.on('message:text', async (ctx) => {
@@ -235,7 +235,7 @@ function createBot(token = config.botToken, botInfo) {
     }
     if (kind === 'notify_min_amout') {
       ctx.session = { flow: 'amount', addressId: id }
-      return reply(ctx, `Send a minimum TON amount for ${shortAddress(record.address)}. For example: <code>0.1</code>.`, new InlineKeyboard().text('Reset', `reset_min_amount_${id}`).row().text('« Back to notifications', `notify_${id}`), true)
+      return reply(ctx, `Send a minimum GRAM amount for ${shortAddress(record.address)}. For example: <code>0.1</code>.`, new InlineKeyboard().text('Reset', `reset_min_amount_${id}`).row().text('« Back to notifications', `notify_${id}`), true)
     }
     if (kind === 'notify_exceptions') {
       ctx.session = { flow: 'filters', addressId: id }

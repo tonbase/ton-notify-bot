@@ -21,8 +21,8 @@ const metadata = {
 }
 
 const CASES = [
-  { id: 'ton', label: 'TON', title: 'Received', icon: '📥', value: '+12.345 TON',
-    amount: '+12.345 TON', detail: 'From', peer: peerLink, incoming: true, comment: 'Payment for order #2048',
+  { id: 'ton', label: 'GRAM', title: 'Received', icon: '📥', value: '+12.345 GRAM',
+    amount: '+12.345 GRAM', detail: 'From', peer: peerLink, incoming: true, comment: 'Payment for order #2048',
     action: { type: 'ton_transfer', success: true, details: { source: peer, destination: wallet, value: '12345000000', comment: 'Payment for order #2048' } } },
   { id: 'usdt', label: 'USDT', title: 'Received', icon: '📥', value: '+125.50 USDT',
     amount: `+125.50 ${tokenLink}`, detail: 'From', peer: peerLink, incoming: true, comment: 'Payment for order #2048',
@@ -30,13 +30,13 @@ const CASES = [
   { id: 'nft', label: 'NFT', title: 'NFT received', icon: '🖼', value: 'Astral Shard #1042',
     amount: nftLink, detail: 'From', peer: peerLink, incoming: true, comment: '',
     action: { type: 'nft_transfer', success: true, details: { old_owner: peer, new_owner: wallet, nft_item: nft, nft_collection: collection } } },
-  { id: 'swap', label: 'Swap', title: 'Swap', icon: '🔄', value: '25 USDT → 8.123 TON',
-    amount: `25 ${tokenLink} → 8.123 TON`, detail: 'DEX', peer: 'STON.fi', incoming: false, comment: '',
+  { id: 'swap', label: 'Swap', title: 'Swap', icon: '🔄', value: '25 USDT → 8.123 GRAM',
+    amount: `25 ${tokenLink} → 8.123 GRAM`, detail: 'DEX', peer: 'STON.fi', incoming: false, comment: '',
     action: { type: 'jetton_swap', success: true, details: { sender: wallet, dex: 'STON.fi',
       dex_incoming_transfer: { amount: '25000000', asset: token }, dex_outgoing_transfer: { amount: '8123000000', asset: null } } } },
   { id: 'failed', label: 'Ошибка', title: 'Transfer failed', icon: '⚠️', value: '25 USDT · not sent',
     amount: `25 ${tokenLink} · not sent`, detail: 'To', peer: peerLink, incoming: false,
-    comment: 'Insufficient TON for network fees',
+    comment: 'Insufficient GRAM for network fees',
     action: { type: 'jetton_transfer', success: false, details: { sender: wallet, receiver: peer, asset: token, amount: '25000000' } } },
 ]
 
@@ -61,7 +61,7 @@ function renderSecondRound(designId, sample) {
   const mine = link('Основной', addressUrl(wallet))
   const tx = link('↗', explorer)
   const status = { ton: 'Получено', usdt: 'Получено', nft: 'Получен NFT', swap: 'Обмен', failed: 'Не отправлено' }[sample.id]
-  const comment = sample.id === 'failed' ? 'Не хватило TON на комиссию'
+  const comment = sample.id === 'failed' ? 'Не хватило GRAM на комиссию'
     : sample.comment ? 'Оплата заказа #2048' : ''
   const amount = sample.id === 'failed' ? `25 ${tokenLink}` : sample.amount
   const details = `<p>${sample.id === 'swap' ? 'DEX' : sample.incoming ? 'От' : 'Кому'}: ${sample.peer}</p>`
@@ -76,15 +76,15 @@ function renderSecondRound(designId, sample) {
   }
   if (designId === 'j') {
     const rows = sample.id === 'swap'
-      ? `<tr><td>${tokenLink}</td><td align="right"><b>−25</b></td></tr><tr><td>TON</td><td align="right"><b>+8.123</b></td></tr>`
+      ? `<tr><td>${tokenLink}</td><td align="right"><b>−25</b></td></tr><tr><td>GRAM</td><td align="right"><b>+8.123</b></td></tr>`
       : sample.id === 'nft'
         ? `<tr><td>${nftLink}</td><td align="right"><b>+1 NFT</b></td></tr>`
-        : `<tr><td>${sample.id === 'ton' ? 'TON' : tokenLink}</td><td align="right"><b>${sample.id === 'ton' ? '+12.345' : sample.id === 'failed' ? '25 · не отправлено' : '+125.50'}</b></td></tr>`
+        : `<tr><td>${sample.id === 'ton' ? 'GRAM' : tokenLink}</td><td align="right"><b>${sample.id === 'ton' ? '+12.345' : sample.id === 'failed' ? '25 · не отправлено' : '+125.50'}</b></td></tr>`
     return `<table compact>${rows}</table><footer>${mine} · ${status} ${tx}</footer>`
       + `<details><summary>Подробности</summary>${details}</details>`
   }
   if (designId === 'k') {
-    const body = sample.id === 'swap' ? `−25 ${tokenLink}<br><b>+8.123 TON</b>` : `<b>${amount}</b>`
+    const body = sample.id === 'swap' ? `−25 ${tokenLink}<br><b>+8.123 GRAM</b>` : `<b>${amount}</b>`
     return `<p>${mine} · ${sample.id === 'failed' ? '⚠️ ' : ''}${status} ${tx}</p>`
       + `<blockquote><p>${body}</p></blockquote>`
       + (comment ? `<footer>${escapeHtml(comment)}</footer>` : '')

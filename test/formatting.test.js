@@ -15,13 +15,13 @@ test('mint, burn, swap, liquidity and staking show units rather than raw nano am
     dex_incoming_transfer: { asset: null, amount: '1500000000' },
     dex_outgoing_transfer: { asset: T, amount: '2300000' },
   } }
-  assert.match(plain(formatAction(swap, A, null, metadata)), /1.5 TON → 2.3 USDT/)
+  assert.match(plain(formatAction(swap, A, null, metadata)), /1.5 GRAM → 2.3 USDT/)
   const stake = { type: 'stake_deposit', details: { stake_holder: A, amount: '123400000000' } }
   assert(participants(stake).includes(A))
-  assert.match(formatAction(stake, A), /123.4 TON/)
+  assert.match(formatAction(stake, A), /123.4 GRAM/)
   assert.match(plain(formatAction({ type: 'dex_deposit_liquidity', details: {
     asset_1: T, amount_1: '1000000', asset_2: null, amount_2: '1000000000',
-  } }, A, null, metadata)), /1 USDT \+ 1 TON/)
+  } }, A, null, metadata)), /1 USDT \+ 1 GRAM/)
 })
 
 test('NFT purchase direction uses real seller and distinguishes payout from price', () => {
@@ -29,7 +29,7 @@ test('NFT purchase direction uses real seller and distinguishes payout from pric
     old_owner: T, real_old_owner: A, is_purchase: true, payout_amount: '5000000000',
   } }, A)
   assert.match(text, /^<b>Sold · /)
-  assert.match(text, /Seller payout: 5 TON/)
+  assert.match(text, /Seller payout: 5 GRAM/)
 })
 
 test('notifications show a short quote without mutating references or implying a purchase', () => {
@@ -38,7 +38,7 @@ test('notifications show a short quote without mutating references or implying a
     source: A, destination: T, value: '919800000', comment,
   } }
   const output = formatNotification(action, A, { tag: 'Main wallet' })
-  assert.match(plain(output.text).split('\n')[0], /^−0.9198 TON/)
+  assert.match(plain(output.text).split('\n')[0], /^−0.9198 GRAM/)
   assert.match(output.text, /<i>“90 Telegram Stars”<\/i>/)
   assert.equal(action.details.comment, comment)
   assert.match(output.richHtml, /<i>“90 Telegram Stars”<\/i>/)
@@ -86,10 +86,10 @@ test('short swap amounts mark rounding, keep large integer precision and never e
 test('failed and self transfers never imply a successful balance change', () => {
   const action = { type: 'ton_transfer', success: false, details: { source: A, destination: T, value: '1000000000' } }
   const failed = plain(formatNotification(action, A).text)
-  assert.match(failed, /^⚠︎ Failed · 1 TON/)
-  assert(!failed.includes('−1 TON'))
+  assert.match(failed, /^⚠︎ Failed · 1 GRAM/)
+  assert(!failed.includes('−1 GRAM'))
   action.success = true; action.details.destination = A
   const self = plain(formatNotification(action, A).text)
-  assert.match(self, /^1 TON/)
+  assert.match(self, /^1 GRAM/)
   assert.match(self, /Self/)
 })

@@ -74,7 +74,7 @@ async function main() {
     let session = readLive(sessionFile)
     if (!session) {
       const samples = []
-      for (const [type, label] of [['ton_transfer', 'TON'], ['jetton_transfer', 'Токен'], ['nft_transfer', 'NFT'], ['jetton_swap', 'Обмен']]) {
+      for (const [type, label] of [['ton_transfer', 'GRAM'], ['jetton_transfer', 'Токен'], ['nft_transfer', 'NFT'], ['jetton_swap', 'Обмен']]) {
         const page = await client.actions({ action_type: type, limit: 20, sort: 'desc', include_accounts: true })
         const action = page.actions.find(item => item.success !== false && participants(item).some(address => address.startsWith('0:')))
         if (!action) throw new Error(`No recent ${type} operation found`)
@@ -85,7 +85,7 @@ async function main() {
       }
       await User.updateOne({ user_id: owner.userId }, { $set: { first_name: 'Private live test', is_blocked: false, is_deactivated: false } }, { upsert: true })
       for (const sample of samples) await Address.updateOne({ user_id: owner.userId, address: sample.address },
-        { $set: { tag: `${sample.label}-1`, is_deleted: false, 'notifications.is_enabled': true } }, { upsert: true })
+        { $set: { tag: '', is_deleted: false, 'notifications.is_enabled': true } }, { upsert: true })
       const watched = await loadWatched()
       for (const sample of samples) await routeAction(sample.action, sample.metadata, watched)
       session = { startedAt: control.startedAt, addresses: samples.map(({ address, type, label }) => ({ address, type, label })),
@@ -100,7 +100,7 @@ async function main() {
       maxMessages: control.maxMessages, addresses: session.addresses.length, pid: process.pid,
       seqno: scannerState.lastProcessed, tip: scannerState.tip, updatedAt: new Date().toISOString() })
     if (!session.introduced && active()) {
-      await api.sendMessage(owner.chatId, 'Включил реальные уведомления TON.\n\nСначала придут четыре недавние операции: TON, токен, NFT и обмен. Затем — новые события выбранных публичных адресов. Эти кошельки не твои; суммы и ссылки настоящие.\n\nДо 30 сообщений, не чаще одного в 20 секунд. Сеанс завершится через час или по лимиту. Замечания можно писать ответом на сообщение.\n/live_status — статус · /live_stop — остановить.',
+      await api.sendMessage(owner.chatId, 'Включил реальные уведомления из блокчейна.\n\nСначала придут четыре недавние операции: GRAM, токен, NFT и обмен. Затем — новые события выбранных публичных адресов. Эти кошельки не твои; суммы и ссылки настоящие.\n\nДо 30 сообщений, не чаще одного в 20 секунд. Сеанс завершится через час или по лимиту. Замечания можно писать ответом на сообщение.\n/live_status — статус · /live_stop — остановить.',
         { disable_notification: true, reply_markup: { inline_keyboard: [[{ text: '⏹ Остановить поток', callback_data: 'live:stop' }]] } })
       session.introduced = true; writeLive(sessionFile, session)
     }

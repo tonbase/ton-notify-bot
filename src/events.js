@@ -26,7 +26,7 @@ function participants(action) {
 }
 
 function assetAmount(amount, asset, metadata, knownTon = false, compact = false) {
-  if (knownTon || asset === null) return `${escapeHtml(compact ? formatDisplayUnits(amount || '0') : formatUnits(amount || '0'))} TON`
+  if (knownTon || asset === null) return `${escapeHtml(compact ? formatDisplayUnits(amount || '0') : formatUnits(amount || '0'))} GRAM`
   const token = metadataFor(metadata, asset)
   const decimalsValue = token?.extra?.decimals ?? token?.decimals
   const decimals = decimalsValue === undefined ? null : Number(decimalsValue)
@@ -38,7 +38,7 @@ function assetAmount(amount, asset, metadata, knownTon = false, compact = false)
 
 function amountText(action, metadata) {
   const details = action.details || {}
-  if (action.type === 'ton_transfer') return `💎 ${escapeHtml(formatUnits(details.value || '0'))} TON`
+  if (action.type === 'ton_transfer') return `💎 ${escapeHtml(formatUnits(details.value || '0'))} GRAM`
   if (['jetton_transfer', 'jetton_mint', 'jetton_burn'].includes(action.type)) {
     return `🪙 ${assetAmount(details.amount, details.asset, metadata)}`
   }
@@ -68,7 +68,7 @@ function amountText(action, metadata) {
     return details.amount !== undefined ? assetAmount(details.amount, details.asset, metadata) : ''
   }
   if (details.value !== undefined && /^\d+$/.test(String(details.value))) {
-    return `💎 ${escapeHtml(formatUnits(details.value))} TON`
+    return `💎 ${escapeHtml(formatUnits(details.value))} GRAM`
   }
   if (details.amount !== undefined) return `Amount: ${escapeHtml(details.amount)} base units`
   return ''
@@ -76,7 +76,7 @@ function amountText(action, metadata) {
 
 function actionTitle(action) {
   const titles = {
-    ton_transfer: 'TON transfer', jetton_transfer: 'Jetton transfer',
+    ton_transfer: 'GRAM transfer', jetton_transfer: 'Jetton transfer',
     nft_transfer: 'NFT transfer', jetton_mint: 'Mint', jetton_burn: 'Burn',
     nft_mint: 'Mint', jetton_swap: 'Swap', contract_deploy: 'Deploy',
     call_contract: 'Contract call', stake_deposit: 'Stake',
