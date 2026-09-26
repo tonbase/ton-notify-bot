@@ -376,6 +376,7 @@ async function main() {
   const signal = shutdownSignal()
   if (!await connectDatabase(signal, 'scanner')) return
   await Delivery.collection.createIndex({ status: 1, next_attempt_at: 1, created_at: 1 })
+  await Delivery.collection.createIndex({ status: 1, created_at: 1, next_attempt_at: 1 })
   await Delivery.collection.createIndex({ chat_id: 1, status: 1, created_at: 1 })
   await TraceTask.collection.createIndex({ status: 1, next_attempt_at: 1 })
   const client = new TonCenter()
