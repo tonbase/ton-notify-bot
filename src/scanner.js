@@ -14,16 +14,21 @@ function deliveryId(actionId, recipient) {
   return crypto.createHash('sha256').update(`${actionId}|${recipient}`).digest('hex')
 }
 
-async function enqueue(action, recipient, notification, record) {
+function deliveryOperation(action, recipient, notification, record) {
   const id = deliveryId(action.action_id, record ? String(record._id) : `channel:${recipient}`)
-  try {
-    await Delivery.updateOne({ _id: id }, { $setOnInsert: {
+  return { updateOne: { filter: { _id: id }, update: { $setOnInsert: {
       _id: id, status: 'pending', attempts: 0, chat_id: recipient,
       user_id: record ? String(record.user_id) : '',
       address_id: record ? String(record._id) : '',
       action_id: action.action_id, text: notification.text, rich_html: notification.richHtml,
       created_at: new Date(), next_attempt_at: new Date(0),
-    } }, { upsert: true })
+    } }, upsert: true } }
+}
+
+async function enqueue(action, recipient, notification, record) {
+  const { filter, update, upsert } = deliveryOperation(action, recipient, notification, record).updateOne
+  try {
+    await Delivery.updateOne(filter, update, { upsert })
   } catch (error) {
     if (error.code !== 11000) throw error
   }
@@ -59,8 +64,25 @@ async function routeAction(action, metadata, watched, excluded = new Set()) {
     if (excluded.has(participant)) continue
     for (const record of watched.map.get(participant) || []) matching.set(String(record._id), record)
   }
-  for (const record of matching.values()) {
-    if (!watched.active.has(record.user_id) || !passesFilters(record, action)) continue
+  const eligible = [...matching.values()].filter((record) => watched.active.has(record.user_id) && passesFilters(record, action))
+  if (eligible.length > 1) {
+    const existing = await Delivery.find({ _id: { $in: eligible.map((record) => deliveryId(action.action_id, String(record._id))) } })
+      .select({ _id: 1 }).lean()
+    const saved = new Set(existing.map((row) => row._id))
+    const operations = eligible.filter((record) => !saved.has(deliveryId(action.action_id, String(record._id))))
+      .map((record) => deliveryOperation(action, record.user_id, formatNotification(action, record.address, record, metadata), record))
+    if (operations.length) {
+      try { await Delivery.bulkWrite(operations, { ordered: false }) }
+      catch (error) {
+        // Concurrent block and trace workers can insert the same deterministic
+        // IDs. Only duplicate-key races are safe to ignore; durability errors
+        // must prevent the block/trace cursor from advancing.
+        if (!error.writeErrors?.length || error.writeErrors.some((item) => item.code !== 11000)
+          || error.writeConcernErrors?.length || error.result?.getWriteConcernError?.()) throw error
+      }
+    }
+  } else if (eligible.length) {
+    const record = eligible[0]
     await enqueue(action, record.user_id, formatNotification(action, record.address, record, metadata), record)
   }
   if (channelEligible(action)) {
