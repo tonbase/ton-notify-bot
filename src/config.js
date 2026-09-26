@@ -26,6 +26,7 @@ const config = {
   requestsPerSecond: integer('TON_REQUESTS_PER_SECOND', 80, 1),
   httpConcurrency: integer('TON_HTTP_CONCURRENCY', 8, 1),
   blockConcurrency: integer('SCAN_BLOCK_CONCURRENCY', 4, 1),
+  traceConcurrency: integer('TRACE_CONCURRENCY', 4, 1),
   sendNotifications: process.env.SEND_NOTIFICATIONS === 'true',
   notificationBatchSize: integer('NOTIFICATION_BATCH_SIZE', 1, 1),
 }
@@ -33,6 +34,7 @@ const config = {
 if (config.pageSize > 1000) throw new Error('SCAN_PAGE_SIZE must be <= 1000')
 if (config.blockConcurrency > 16) throw new Error('SCAN_BLOCK_CONCURRENCY must be <= 16')
 if (config.notificationBatchSize > 10) throw new Error('NOTIFICATION_BATCH_SIZE must be <= 10')
+if (config.traceConcurrency > 16) throw new Error('TRACE_CONCURRENCY must be <= 16')
 
 function requireBotToken() {
   if (!config.botToken) throw new Error('BOT_TOKEN is missing; set it in the ignored .env file')

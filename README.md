@@ -68,6 +68,7 @@ Delivery is at least once: a crash or network timeout after Telegram accepts a m
 | `TON_REQUESTS_PER_SECOND` | Per-scanner ceiling, default 80; leave room if the key is shared |
 | `TON_HTTP_CONCURRENCY` | Maximum simultaneous API requests, default 8 |
 | `SCAN_BLOCK_CONCURRENCY` | Concurrent block scans, default 4; cursor commits remain ordered and catch-up batches run without the idle delay |
+| `TRACE_CONCURRENCY` | Concurrent trace tasks, default 4, maximum 16; keep this below the HTTP concurrency ceiling to reserve capacity for block scanning |
 | `HTTP_TIMEOUT_MS` | Timeout for each HTTP attempt, default 15000 |
 | `SCAN_START_SEQNO` | Starting block when creating the new cursor; does not override an existing cursor |
 | `SCAN_LAG_BLOCKS` | Delay behind the indexer tip, default 16 blocks |

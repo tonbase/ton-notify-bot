@@ -201,7 +201,7 @@ async function reconcileTraces(client) {
   let nextTask = 0
   // Leave HTTP and database capacity for block scanning and delivery while
   // draining a large trace backlog. Starting all 100 tasks starves those loops.
-  await Promise.all(Array.from({ length: Math.min(4, tasks.length) }, async () => {
+  await Promise.all(Array.from({ length: Math.min(config.traceConcurrency, tasks.length) }, async () => {
     while (nextTask < tasks.length) {
       const task = tasks[nextTask++]
       try { await processTask(task) }
@@ -374,6 +374,7 @@ async function sendPending(api, state = {}, { maxMessages = 100, chatId, batchSi
           await sendText()
         }
       } else await sendText()
+      state.chats.set(String(delivery.chat_id), Date.now() + (Number(delivery.chat_id) < 0 ? 3100 : 1100))
       await updateBatch({ $set: { status: 'sent', sent_at: new Date() }, $unset: { lease_until: 1, last_error: 1 } })
       sent += 1
       for (const item of batch.filter((item) => item.address_id)) {
@@ -453,13 +454,13 @@ async function main() {
     workerLoop('traces', () => reconcileTraces(client), { signal, intervalMs: 5000 })]
   if (config.sendNotifications) {
     const api = new Api(config.botToken, { timeoutSeconds: 30 })
-    const limiter = new RequestLimiter(25, 4)
+    const limiter = new RequestLimiter(25, 8)
     const sender = {
       sendMessage: (...args) => limiter.run(() => api.sendMessage(...args)),
       sendRichMessage: (...args) => limiter.run(() => api.sendRichMessage(...args)),
     }
     const deliveryState = {}
-    workers.push(workerLoop('delivery', async () => ({ sent: await sendPendingParallel(sender, deliveryState, { batchSize: config.notificationBatchSize }) }), { signal, intervalMs: 250 }))
+    workers.push(workerLoop('delivery', async () => ({ sent: await sendPendingParallel(sender, deliveryState, { batchSize: config.notificationBatchSize, concurrency: 8 }) }), { signal, intervalMs: 250 }))
   } else {
     await health('delivery', { status: 'disabled' })
   }
