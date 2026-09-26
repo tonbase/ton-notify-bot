@@ -1,7 +1,27 @@
+// Decimal128 may serialize an integer threshold as 1E+9. Parse it and decimal
+// user input without passing amounts through floating-point numbers.
+function scaledInteger(value, decimals = 0) {
+  const input = String(value).trim()
+  if (input.length > 2048) return null
+  const match = input.match(/^(-?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:e([+-]?\d+))?$/i)
+  if (!match) return null
+  const fraction = match[3] ?? match[4] ?? ''
+  const digits = ((match[2] || '0') + fraction).replace(/^0+/, '') || '0'
+  if (digits === '0') return '0'
+  if (match[1]) return null
+  const exponent = Number(match[5] || 0)
+  if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > 1000) return null
+  const shift = decimals + exponent - fraction.length
+  if (shift >= 0) return digits + '0'.repeat(shift)
+  const cut = digits.length + shift
+  if (cut <= 0 || /[1-9]/.test(digits.slice(cut))) return null
+  return digits.slice(0, cut)
+}
+
 function formatUnits(value, decimals = 9, maxFraction = 9) {
   const negative = String(value).startsWith('-')
-  const digits = String(value).replace(/^-/, '')
-  if (!/^\d+$/.test(digits) || !Number.isInteger(decimals) || decimals < 0 || decimals > 255) {
+  const digits = scaledInteger(String(value).replace(/^-/, ''))
+  if (digits === null || !Number.isInteger(decimals) || decimals < 0 || decimals > 255) {
     return String(value)
   }
   const padded = digits.padStart(decimals + 1, '0')
@@ -12,10 +32,8 @@ function formatUnits(value, decimals = 9, maxFraction = 9) {
 }
 
 function toNano(value) {
-  if (!/^(0|[1-9]\d*)(\.\d{1,9})?$/.test(value)) return null
-  const [whole, fraction = ''] = value.split('.')
-  const nano = (BigInt(whole) * 1000000000n + BigInt(fraction.padEnd(9, '0') || '0')).toString()
-  return nano.length <= 34 ? nano : null
+  const nano = scaledInteger(value, 9)
+  return nano !== null && nano.length <= 34 ? nano : null
 }
 
 // Display the exact amount, trimming only insignificant trailing zeroes.
@@ -23,4 +41,4 @@ function formatDisplayUnits(value, decimals = 9) {
   return formatUnits(value, decimals, decimals)
 }
 
-module.exports = { formatUnits, formatDisplayUnits, toNano }
+module.exports = { formatUnits, formatDisplayUnits, toNano, scaledInteger }

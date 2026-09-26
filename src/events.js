@@ -1,5 +1,5 @@
 const { rawAddress, friendlyAddress, shortAddress } = require('./address')
-const { formatDisplayUnits } = require('./amount')
+const { formatDisplayUnits, scaledInteger } = require('./amount')
 
 // Official USDt master: https://tether.to/en/supported-protocols/
 const USDT_MASTER = rawAddress('EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs')
@@ -180,7 +180,7 @@ function eventIcon(action, direction) {
   return icons[action.type] || { emoji: '🔔', customId: '5370648903324554299' }
 }
 
-function formatNotification(action, watched, record, metadata = {}) {
+function formatNotification(action, watched, record, metadata = {}, resolveLabel = () => null) {
   const d = action.details || {}
   const stakingIn = ['stake_deposit', 'stake_withdrawal_request'].includes(action.type)
   const stakingOut = action.type === 'stake_withdrawal'
@@ -198,8 +198,11 @@ function formatNotification(action, watched, record, metadata = {}) {
     const friendly = friendlyAddress(address)
     return friendly ? `${friendly.slice(0, 5)}…${friendly.slice(-5)}` : compactText(address || 'unknown', 16)
   }
-  const tag = record?.tag ? compactText(record.tag, 16) : briefAddress(watched)
-  const party = (address) => linkAddress(address, rawAddress(address) === watchedRaw ? tag : briefAddress(address))
+  const party = (address) => {
+    const raw = rawAddress(address)
+    const label = (raw === watchedRaw && record?.tag) || resolveLabel(raw, record?.user_id)
+    return linkAddress(address, label ? compactText(label, 16) : briefAddress(address))
+  }
   let route = source && destination && rawAddress(source) !== rawAddress(destination)
     ? `${party(source)} → ${party(destination)}` : party(source || destination || watched)
   if ((source || destination) && ![rawAddress(source), rawAddress(destination)].includes(watchedRaw)) route = `${party(watched)} · ${route}`
@@ -274,9 +277,9 @@ function passesFilters(record, action) {
   if ((settings.exceptions || []).includes(comment)) return false
   if ((settings.inclusion || []).length && !(settings.inclusion || []).includes(comment)) return false
   if (action.type === 'ton_transfer') {
-    try {
-      return BigInt(action.details?.value || '0') >= BigInt(String(settings.min_amount || '0'))
-    } catch { return true }
+    const value = scaledInteger(action.details?.value ?? '0')
+    const minimum = scaledInteger(settings.min_amount ?? '0')
+    return value !== null && minimum !== null && BigInt(value) >= BigInt(minimum)
   }
   return true
 }

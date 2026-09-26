@@ -5,6 +5,7 @@ const { mongoose, Address, User, Counter, Delivery, TraceTask } = require('./mod
 const { rawAddress } = require('./address')
 const { participants, formatNotification, passesFilters } = require('./events')
 const { toNano } = require('./amount')
+const { isExcludedTransfer, refreshAddressBook, resolveAccountLabel } = require('./address-book')
 const { TonCenter, RequestLimiter, sleep } = require('./toncenter')
 const { safeError, shutdownSignal, connectDatabase, workerLoop, health } = require('./runtime')
 
@@ -59,6 +60,8 @@ function channelEligible(action) {
 
 async function routeAction(action, metadata, watched, excluded = new Set()) {
   if (!action.action_id || typeof action.action_id !== 'string') throw new Error('Action without action_id')
+  if (isExcludedTransfer(action)) return
+  const label = (address, userId) => resolveAccountLabel(watched, address, userId)
   const matching = new Map()
   for (const participant of participants(action)) {
     if (excluded.has(participant)) continue
@@ -70,7 +73,7 @@ async function routeAction(action, metadata, watched, excluded = new Set()) {
       .select({ _id: 1 }).lean()
     const saved = new Set(existing.map((row) => row._id))
     const operations = eligible.filter((record) => !saved.has(deliveryId(action.action_id, String(record._id))))
-      .map((record) => deliveryOperation(action, record.user_id, formatNotification(action, record.address, record, metadata), record))
+      .map((record) => deliveryOperation(action, record.user_id, formatNotification(action, record.address, record, metadata, label), record))
     if (operations.length) {
       try { await Delivery.bulkWrite(operations, { ordered: false }) }
       catch (error) {
@@ -83,10 +86,10 @@ async function routeAction(action, metadata, watched, excluded = new Set()) {
     }
   } else if (eligible.length) {
     const record = eligible[0]
-    await enqueue(action, record.user_id, formatNotification(action, record.address, record, metadata), record)
+    await enqueue(action, record.user_id, formatNotification(action, record.address, record, metadata, label), record)
   }
   if (channelEligible(action)) {
-    await enqueue(action, config.channelId, formatNotification(action, action.details.source || action.details.destination, null, metadata), null)
+    await enqueue(action, config.channelId, formatNotification(action, action.details.source || action.details.destination, null, metadata, label), null)
   }
 }
 
@@ -451,7 +454,8 @@ async function main() {
       const lag = state.tip - state.lastProcessed
       return { seqno: state.lastProcessed, tip: state.tip, lag, catchingUp: lag > 0 }
     }, { signal, intervalMs: config.scanIntervalMs }),
-    workerLoop('traces', () => reconcileTraces(client), { signal, intervalMs: 5000 })]
+    workerLoop('traces', () => reconcileTraces(client), { signal, intervalMs: 5000 }),
+    workerLoop('address-book', () => refreshAddressBook(), { signal, intervalMs: 3600000 })]
   if (config.sendNotifications) {
     const api = new Api(config.botToken, { timeoutSeconds: 30 })
     const limiter = new RequestLimiter(25, 8)

@@ -2,8 +2,18 @@ const { Address } = require('@ton/core')
 
 function rawAddress(value) {
   if (typeof value !== 'string' || !value.trim()) return null
+  const input = value.trim()
   try {
-    return Address.parse(value.trim()).toRawString().toUpperCase()
+    // Validate the entire raw value: the SDK accepts suffixes and partial IDs.
+    if (input.includes(':')) {
+      if (!/^-?\d+:[a-fA-F0-9]{64}$/.test(input)) return null
+      const workchain = Number(input.split(':')[0])
+      if (!Number.isInteger(workchain) || workchain < -2147483648 || workchain > 2147483647) return null
+      return Address.parseRaw(input).toRawString().toUpperCase()
+    }
+    const { address } = Address.parseFriendly(input)
+    const workchain = Buffer.from(input, 'base64').readInt8(1)
+    return new Address(workchain, address.hash).toRawString().toUpperCase()
   } catch {
     return null
   }
@@ -12,7 +22,10 @@ function rawAddress(value) {
 function friendlyAddress(value) {
   const raw = rawAddress(value)
   if (!raw) return null
-  return Address.parseRaw(raw).toString({ urlSafe: true, bounceable: false })
+  const address = Address.parseRaw(raw)
+  // A workchain outside int8 cannot be represented by a friendly address.
+  return address.workChain < -128 || address.workChain > 127 ? raw
+    : address.toString({ urlSafe: true, bounceable: false })
 }
 
 function shortAddress(value) {
