@@ -232,7 +232,7 @@ async function main() {
   if (!owner.userId) console.log(`Pairing link: https://t.me/${bot.botInfo.username}?start=${pairing.code}`)
   await bot.start({ allowed_updates: ['message', 'callback_query'], onStart: async () => {
     write('status.json', { status: owner.userId ? 'polling' : 'awaiting_start', pid: process.pid, startedAt: new Date().toISOString() })
-    if (owner.userId) await sendGallery()
+    if (owner.userId && read('approved.json', {}).status !== 'approved') await sendGallery()
   } })
 }
 

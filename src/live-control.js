@@ -23,6 +23,9 @@ function liveStatus() {
     return `Нет свежего статуса сканера. Поток мог прерваться. Отправлено: ${status.sent || 0}.`
   }
   const enabled = readLive('control.json')?.enabled && status.status === 'running'
+  if (status.mode === 'all-types') {
+    return `${enabled ? 'Непрерывный поток включён' : 'Поток остановлен'}. Отправлено: ${status.sent || 0}.\nВсе доступные типы, без лимита сообщений; интервал ${Math.round((status.intervalMs || 5000) / 1000)} сек.\n/live_stop — остановить.`
+  }
   return `${enabled ? 'Поток включён' : 'Поток остановлен'}. Отправлено: ${status.sent || 0} / ${status.maxMessages || 30}.\n/live_stop — остановить.`
 }
 module.exports = { directory, readLive, writeLive, stopLive, liveStatus }
