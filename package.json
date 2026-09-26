@@ -11,6 +11,7 @@
     "smoke:bot": "node scripts/bot-smoke.js",
     "smoke:recovery": "node scripts/recovery-smoke.js",
     "health": "node scripts/health.js",
+    "design": "node scripts/design-lab.js",
     "test": "node --test test/*.test.js",
     "check": "node --check src/bot.js && node --check src/scanner.js && node --test test/*.test.js"
   },
@@ -28,7 +29,7 @@
   "dependencies": {
     "@ton/core": "^0.62.0",
     "dotenv": "^16.6.1",
-    "grammy": "^1.38.0",
+    "grammy": "^1.46.0",
     "mongoose": "^8.18.0"
   }
 }

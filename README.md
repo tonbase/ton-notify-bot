@@ -17,6 +17,18 @@ Notifications use a compact layout: direction, participants and transaction link
 
 ## Checks
 
+### Vote on message designs in Telegram
+
+Save a separate test bot token as `DESIGN_BOT_TOKEN` in the ignored `.env.design` file. Send that bot `/start`, run `npm run design -- --register` to record the unique recent private sender, then run `npm run design`. Registration leaves webhooks and other bot settings untouched; it refuses ambiguous senders. The design lab accepts messages and votes only from its registered private owner.
+
+If Telegram no longer has that `/start` update, simply run `npm run design`: it prints a private one-time pairing link. Open the link and press Start. The lab records that sender and automatically sends the gallery; unrelated plain `/start` messages cannot claim the lab. The pairing link and owner registration live only in the ignored local folder.
+
+The lab sends eight design directions, including native Telegram Rich Messages with collapsible details, compact tables, headings and embedded buttons. Switch between five synthetic examples using the buttons below each message. Vote like/dislike/finalist or leave a reply. Votes, comments, message IDs and registration remain in `.local/design-lab/`; none are published. `/results` displays saved votes, `/designs` sends missing designs, and `/again` resends the set. These controls are for design review, separate from the production scanner. The bot process must remain running to receive feedback.
+
+Rich formatting uses the official [`sendRichMessage` API](https://core.telegram.org/bots/api#sendrichmessage). A successful API response confirms delivery; appearance and client support still need review in Telegram.
+
+### Automated checks
+
 - `npm test`: amount precision, formatting, pagination, cursor durability, rate limits/timeouts, trace reconciliation and Telegram retries.
 - `npm run smoke`: requires local MongoDB on port 27018. Discovers nine recent action types, registers public addresses in a disposable `ton-notify-smoke-*` database, scans full blocks, reconciles traces and checks replay deduplication. Writes notification examples to `.local/live-notifications.html`, then drops only its test database. No Telegram messages are sent.
 - `npm run smoke:bot`: tests grammY address/settings/share/block flows against local MongoDB and a mocked Telegram API.
