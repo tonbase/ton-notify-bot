@@ -39,7 +39,7 @@ test('notifications show a short quote without mutating references or implying a
   } }
   const output = formatNotification(action, A, { tag: 'Main wallet' })
   assert.match(plain(output.text).split('\n')[0], /^📤 −0.9198 GRAM/)
-  assert.match(output.richHtml, /^<p><tg-emoji emoji-id="5445355530111437729">📤<\/tg-emoji>/)
+  assert.match(output.richHtml, /^<p><tg-emoji emoji-id="5372989093565189720">📤<\/tg-emoji>/)
   assert.match(output.text, /<i>“90 Telegram Stars”<\/i>/)
   assert.equal(action.details.comment, comment)
   assert.match(output.richHtml, /<i>“90 Telegram Stars”<\/i>/)
@@ -82,6 +82,27 @@ test('short swap amounts mark rounding, keep large integer precision and never e
   assert.equal(formatDisplayUnits('12345', 18), '≈0.00000000000001235')
   assert.equal(formatDisplayUnits('123456789123456789'), '≈123,456,789.123457')
   assert.equal(formatDisplayUnits('25000000', 6), '25')
+})
+
+test('asset icons distinguish native GRAM and the official USDt master from ticker lookalikes', () => {
+  const usdt = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs'
+  const action = { type: 'jetton_transfer', transactions: ['hash'], details: {
+    sender: A, receiver: T, asset: usdt, amount: '1250000',
+  } }
+  const output = formatNotification(action, A, null, { [usdt]: metadata[T] })
+  assert.match(output.richHtml, /emoji-id="5406841020769936275"/)
+  assert.match(plain(output.text), /1.25 USDT/)
+  assert(!output.text.includes('tg-emoji'))
+  action.details.asset = T
+  const lookalike = formatNotification(action, A, null, metadata)
+  assert.match(plain(lookalike.text), /1.25 USDT/)
+  assert(!lookalike.richHtml.includes('5406841020769936275'))
+  assert(!lookalike.richHtml.includes('5318901904686754959'))
+  const native = formatNotification({ type: 'ton_transfer', transactions: ['hash'], details: {
+    source: A, destination: T, value: '510000000',
+  } }, A)
+  assert.match(native.richHtml, /emoji-id="5318901904686754959"/)
+  assert.match(plain(native.text), /−0.51 GRAM/)
 })
 
 test('failed and self transfers never imply a successful balance change', () => {

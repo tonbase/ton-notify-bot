@@ -1,6 +1,9 @@
 const { rawAddress, friendlyAddress, shortAddress } = require('./address')
 const { formatUnits, formatDisplayUnits } = require('./amount')
 
+// Official USDt master: https://tether.to/en/supported-protocols/
+const USDT_MASTER = rawAddress('EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs')
+
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char])
@@ -26,19 +29,19 @@ function participants(action) {
 }
 
 function assetAmount(amount, asset, metadata, knownTon = false, compact = false) {
-  if (knownTon || asset === null) return `${escapeHtml(compact ? formatDisplayUnits(amount || '0') : formatUnits(amount || '0'))} GRAM`
+  if (knownTon || asset === null) return `${escapeHtml(compact ? formatDisplayUnits(amount || '0') : formatUnits(amount || '0'))} ${assetLabel(null, 'GRAM')}`
   const token = metadataFor(metadata, asset)
   const decimalsValue = token?.extra?.decimals ?? token?.decimals
   const decimals = decimalsValue === undefined ? null : Number(decimalsValue)
   const symbol = compactText(token?.symbol || token?.name || 'jetton', 24)
   const quantity = Number.isInteger(decimals) && decimals >= 0 && decimals <= 30
     ? (compact ? formatDisplayUnits(amount || '0', decimals) : formatUnits(amount || '0', decimals, decimals)) : `${amount || '0'} base units`
-  return `${escapeHtml(quantity)} ${linkAddress(asset, symbol)}`
+  return `${escapeHtml(quantity)} ${assetLabel(asset, symbol)}`
 }
 
 function amountText(action, metadata) {
   const details = action.details || {}
-  if (action.type === 'ton_transfer') return `💎 ${escapeHtml(formatUnits(details.value || '0'))} GRAM`
+  if (action.type === 'ton_transfer') return `💎 ${assetAmount(details.value, null, metadata)}`
   if (['jetton_transfer', 'jetton_mint', 'jetton_burn'].includes(action.type)) {
     return `🪙 ${assetAmount(details.amount, details.asset, metadata)}`
   }
@@ -68,7 +71,7 @@ function amountText(action, metadata) {
     return details.amount !== undefined ? assetAmount(details.amount, details.asset, metadata) : ''
   }
   if (details.value !== undefined && /^\d+$/.test(String(details.value))) {
-    return `💎 ${escapeHtml(formatUnits(details.value))} GRAM`
+    return `💎 ${assetAmount(details.value, null, metadata)}`
   }
   if (details.amount !== undefined) return `Amount: ${escapeHtml(details.amount)} base units`
   return ''
@@ -100,16 +103,26 @@ function linkAddress(address, label) {
   return `<a href="https://tonscan.org/address/${encodeURIComponent(friendly)}">${escapeHtml(label || shortAddress(address))}</a>`
 }
 
+function assetLabel(asset, symbol) {
+  // Only the two selected assets from https://t.me/addemoji/CryptoBotAssets.
+  // Match USDt by its master contract, never by an untrusted ticker.
+  const icon = asset === null ? { id: '5318901904686754959', emoji: '💎' }
+    : rawAddress(asset) === USDT_MASTER ? { id: '5406841020769936275', emoji: '💵' } : null
+  const label = asset === null ? escapeHtml(symbol) : linkAddress(asset, symbol)
+  return icon ? `<tg-emoji emoji-id="${icon.id}">${icon.emoji}</tg-emoji> ${label}` : label
+}
+
 function eventIcon(action, direction) {
-  if (action.success === false) return { emoji: '⚠️' }
+  // Static icons: https://t.me/addemoji/BasicinterfaceEmoji
+  if (action.success === false) return { emoji: '⚠️', customId: '5370640017037218875' }
   if (['ton_transfer', 'jetton_transfer', 'nft_transfer'].includes(action.type)) {
-    // Public Finance Emoji set: https://t.me/addemoji/FinanceEmoji
-    if (direction === 'Send') return { emoji: '📤', customId: '5445355530111437729' }
-    if (direction === 'Receive') return { emoji: '📥', customId: '5443127283898405358' }
-    return { emoji: direction === 'Self' ? '🔁' : '↔️' }
+    if (direction === 'Send') return { emoji: '📤', customId: '5372989093565189720' }
+    if (direction === 'Receive') return { emoji: '📥', customId: '5372835488354815966' }
+    return direction === 'Self' ? { emoji: '🔁', customId: '5373124754402203769' } : { emoji: '↔️' }
   }
+  if (action.type === 'jetton_swap') return { emoji: '🔄', customId: '5373124754402203769' }
   const icons = {
-    jetton_swap: '🔄', jetton_mint: '✨', nft_mint: '✨', jetton_burn: '🔥',
+    jetton_mint: '✨', nft_mint: '✨', jetton_burn: '🔥',
     stake_deposit: '🔒', election_deposit: '🔒', stake_withdrawal_request: '⏳',
     stake_withdrawal: '🔓', election_recover: '🔓',
     dex_deposit_liquidity: '➕', dex_withdraw_liquidity: '➖',
@@ -179,7 +192,8 @@ function formatNotification(action, watched, record, metadata = {}) {
   // transaction link exposes the complete reference and precise swap amounts.
   const excerpt = hash ? comment.replace(/\s+Ref#[A-Za-z0-9_-]+$/u, '') : comment
   if (excerpt.trim()) lines.push(`<i>“${escapeHtml(compactText(excerpt, 48))}”</i>`)
-  const text = [...lines, ...details].join('\n')
+  // The text fallback keeps asset tickers readable without custom-emoji support.
+  const text = [...lines, ...details].join('\n').replace(/<tg-emoji\b[^>]*>.*?<\/tg-emoji> /gu, '')
   if (!transactionUrl) return { text }
   // Keep the URL button inside one paragraph so the native link does not add
   // a separate button row or spacing between notification lines.
