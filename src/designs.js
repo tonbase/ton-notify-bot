@@ -1,7 +1,7 @@
 const { formatAction, escapeHtml } = require('./events')
 const { friendlyAddress, shortAddress } = require('./address')
 
-const REVISION = 'r1'
+const REVISION = 'r2'
 // Synthetic fixtures: no recipient identity, credentials or private wallet data.
 const wallet = `0:${'1'.repeat(64)}`
 const peer = `0:${'2'.repeat(64)}`
@@ -40,7 +40,7 @@ const CASES = [
     action: { type: 'jetton_transfer', success: false, details: { sender: wallet, receiver: peer, asset: token, amount: '25000000' } } },
 ]
 
-const DESIGNS = [
+const PREVIOUS_DESIGNS = [
   { id: 'a', label: 'A · Классика', mode: 'text', description: 'Текущий компактный шаблон: направление, адреса, сумма.' },
   { id: 'b', label: 'B · Сумма первой', mode: 'text', description: 'Главный акцент — изменение актива, затем кошелёк.' },
   { id: 'c', label: 'C · Минимализм', mode: 'text', description: 'Без эмодзи; спокойная типографика и две строки.' },
@@ -51,10 +51,51 @@ const DESIGNS = [
   { id: 'h', label: 'H · Встроенные кнопки', mode: 'rich', description: 'Действия встроены в текст сообщения.' },
 ]
 
+const DESIGNS = [
+  { id: 'i', label: 'I · Лента', mode: 'text', description: 'Короткая запись: сумма и кошелёк в одной строке, комментарий ниже.' },
+  { id: 'j', label: 'J · Ведомость', mode: 'rich', description: 'Актив слева, изменение справа. Подробности раскрываются по нажатию.' },
+  { id: 'k', label: 'K · Акцент', mode: 'rich', description: 'Цветная полоса нативной цитаты выделяет сумму; подпись и комментарий снаружи.' },
+]
+
+function renderSecondRound(designId, sample) {
+  const mine = link('Основной', addressUrl(wallet))
+  const tx = link('↗', explorer)
+  const status = { ton: 'Получено', usdt: 'Получено', nft: 'Получен NFT', swap: 'Обмен', failed: 'Не отправлено' }[sample.id]
+  const comment = sample.id === 'failed' ? 'Не хватило TON на комиссию'
+    : sample.comment ? 'Оплата заказа #2048' : ''
+  const amount = sample.id === 'failed' ? `25 ${tokenLink}` : sample.amount
+  const details = `<p>${sample.id === 'swap' ? 'DEX' : sample.incoming ? 'От' : 'Кому'}: ${sample.peer}</p>`
+    + (comment ? `<p>${escapeHtml(comment)}</p>` : '')
+    + `<p>${link('Транзакция ↗', explorer)}</p>`
+  if (designId === 'i') {
+    const heading = sample.id === 'nft' ? `+ NFT · ${mine} ${tx}\n<b>${amount}</b>`
+      : sample.id === 'swap' ? `${mine} · Обмен ${tx}\n<b>${amount}</b>`
+        : `<b>${amount}</b> · ${mine} ${tx}`
+    return (sample.id === 'failed' ? `⚠️ Не отправлено\n${heading}` : heading)
+      + (comment ? `\n<i>${escapeHtml(comment)}</i>` : '')
+  }
+  if (designId === 'j') {
+    const rows = sample.id === 'swap'
+      ? `<tr><td>${tokenLink}</td><td align="right"><b>−25</b></td></tr><tr><td>TON</td><td align="right"><b>+8.123</b></td></tr>`
+      : sample.id === 'nft'
+        ? `<tr><td>${nftLink}</td><td align="right"><b>+1 NFT</b></td></tr>`
+        : `<tr><td>${sample.id === 'ton' ? 'TON' : tokenLink}</td><td align="right"><b>${sample.id === 'ton' ? '+12.345' : sample.id === 'failed' ? '25 · не отправлено' : '+125.50'}</b></td></tr>`
+    return `<table compact>${rows}</table><footer>${mine} · ${status} ${tx}</footer>`
+      + `<details><summary>Подробности</summary>${details}</details>`
+  }
+  if (designId === 'k') {
+    const body = sample.id === 'swap' ? `−25 ${tokenLink}<br><b>+8.123 TON</b>` : `<b>${amount}</b>`
+    return `<p>${mine} · ${sample.id === 'failed' ? '⚠️ ' : ''}${status} ${tx}</p>`
+      + `<blockquote><p>${body}</p></blockquote>`
+      + (comment ? `<footer>${escapeHtml(comment)}</footer>` : '')
+  }
+}
+
 function renderDesign(designId, caseId = 'usdt') {
-  const design = DESIGNS.find((item) => item.id === designId)
+  const design = [...DESIGNS, ...PREVIOUS_DESIGNS].find((item) => item.id === designId)
   const sample = CASES.find((item) => item.id === caseId)
   if (!design || !sample) throw new Error('Unknown design or example')
+  if (DESIGNS.some((item) => item.id === designId)) return { mode: design.mode, html: renderSecondRound(designId, sample), design, sample }
   const { amount, title, icon, comment } = sample
   const route = sample.id === 'swap' ? `${ownLink} · STON.fi`
     : sample.incoming ? `${peerLink} → ${ownLink}` : `${ownLink} → ${peerLink}`

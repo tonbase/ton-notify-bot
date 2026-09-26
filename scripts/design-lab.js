@@ -35,7 +35,7 @@ function createLab(owner, state, persist, botToken = token, botInfo, pairing = {
   state.notes ||= []
   state.events ||= []
   function event(type, data) {
-    state.events.push({ type, ...data, at: new Date().toISOString() })
+    state.events.push({ type, revision: REVISION, ...data, at: new Date().toISOString() })
     state.events = state.events.slice(-1000)
     persist()
   }
@@ -43,13 +43,12 @@ function createLab(owner, state, persist, botToken = token, botInfo, pairing = {
   function keyboard(designId, caseId) {
     const design = DESIGNS.find((item) => item.id === designId)
     const vote = state.votes[key(designId, caseId)]?.rating
-    const kb = new InlineKeyboard().text(design.label, `lab:label:${designId}`).row()
-    for (const sample of CASES) kb.text(`${sample.id === caseId ? '• ' : ''}${sample.label}`, `lab:case:${designId}:${sample.id}`)
-    kb.row()
-    for (const [rating, label] of [['like', '👍 Норм'], ['dislike', '👎 Мимо'], ['finalist', '⭐ В финал']]) {
+    const next = CASES[(CASES.findIndex((sample) => sample.id === caseId) + 1) % CASES.length]
+    const kb = new InlineKeyboard().text(design.id.toUpperCase(), `lab:label:${designId}`)
+    for (const [rating, label] of [['like', '👍'], ['dislike', '👎'], ['finalist', '⭐']]) {
       kb.text(`${vote === rating ? '✓ ' : ''}${label}`, `lab:vote:${designId}:${caseId}:${rating}`)
     }
-    return kb.row().text('✍️ Что улучшить', `lab:note:${designId}:${caseId}`)
+    return kb.text(`${next.label} ›`, `lab:case:${designId}:${next.id}`)
   }
   async function sendDesign(designId, caseId = 'usdt') {
     const rendered = renderDesign(designId, caseId)
@@ -62,10 +61,11 @@ function createLab(owner, state, persist, botToken = token, botInfo, pairing = {
     return message
   }
   async function sendGallery(force = false) {
-    if (!state.introduced) {
+    state.introductions ||= {}
+    if (!state.introductions[REVISION]) {
       await bot.api.sendMessage(owner.chatId,
-        'Выбираем оформление TON-уведомлений.\n\nПришлю 8 вариантов A–H. Данные демонстрационные, адреса вымышленные, кнопка Explorer открывает обозреватель. Это не реальные переводы.\n\nПод каждым вариантом можно переключить TON / USDT / NFT / Swap / Ошибка и оценить: 👍 норм, 👎 мимо, ⭐ в финал. «Что улучшить» сохранит твой комментарий. Кнопки оценки нужны только для тестирования дизайна.\n\n/results — текущий выбор. /designs — показать недостающие варианты. /again — прислать набор заново.')
-      state.introduced = true; persist()
+        'Новая тройка: I — короткая запись, J — таблица сумм, K — акцент цитатой.\n\n👍 нравится · 👎 мимо · ⭐ в финал. Последняя кнопка меняет пример; буква показывает описание. Замечание — ответом на вариант. Кнопки оценки только для лаборатории.\n\nДанные вымышленные, ↗ открывает главную обозревателя. /results — оценки.')
+      state.introductions[REVISION] = true; persist()
     }
     for (const design of DESIGNS) {
       if (!force && Object.values(state.messages).some((m) => m.revision === REVISION && m.designId === design.id)) continue
@@ -113,12 +113,14 @@ function createLab(owner, state, persist, botToken = token, botInfo, pairing = {
     const parts = ctx.callbackQuery.data.split(':')
     if (parts[0] !== 'lab') return
     const [, operation, designId, caseId, rating] = parts
-    const design = DESIGNS.find((item) => item.id === designId)
-    if (!design) return ctx.answerCallbackQuery({ text: 'Неизвестный вариант' })
-    if (operation === 'label') return ctx.answerCallbackQuery({ text: design.description, show_alert: true })
-    if (!CASES.some((item) => item.id === caseId)) return ctx.answerCallbackQuery({ text: 'Неизвестный пример' })
     const messageId = ctx.callbackQuery.message?.message_id
     if (state.messages[messageId]?.revision !== REVISION) return ctx.answerCallbackQuery({ text: 'Этот раунд завершён. Используй /designs.' })
+    const design = DESIGNS.find((item) => item.id === designId)
+    if (!design) return ctx.answerCallbackQuery({ text: 'Неизвестный вариант' })
+    if (state.messages[messageId]?.designId !== designId) return ctx.answerCallbackQuery({ text: 'Кнопка относится к другому варианту' })
+    if (operation === 'label') return ctx.answerCallbackQuery({ text: design.description, show_alert: true })
+    if (!CASES.some((item) => item.id === caseId)) return ctx.answerCallbackQuery({ text: 'Неизвестный пример' })
+    if (operation === 'vote' && state.messages[messageId]?.caseId !== caseId) return ctx.answerCallbackQuery({ text: 'Пример уже изменился. Нажми оценку ещё раз.' })
     if (operation === 'vote' && ['like', 'dislike', 'finalist'].includes(rating)) {
       state.votes[key(designId, caseId)] = { rating, at: new Date().toISOString() }
       event('vote', { designId, caseId, rating })
@@ -131,17 +133,17 @@ function createLab(owner, state, persist, botToken = token, botInfo, pairing = {
       return
     }
     if (operation === 'note') {
-      state.pendingNote = { designId, caseId }; persist()
+      state.pendingNote = { revision: REVISION, designId, caseId }; persist()
       await ctx.answerCallbackQuery()
       const prompt = await ctx.reply(`Что изменить в ${design.label} / ${CASES.find((item) => item.id === caseId).label}? Напиши одним сообщением.`,
         { reply_markup: { force_reply: true, selective: true } })
-      state.notePrompts ||= {}; state.notePrompts[prompt.message_id] = { designId, caseId }; persist()
+      state.notePrompts ||= {}; state.notePrompts[prompt.message_id] = { revision: REVISION, designId, caseId }; persist()
     }
   })
   bot.on('message:text', async (ctx) => {
     const replyId = ctx.message.reply_to_message?.message_id
     const target = state.notePrompts?.[replyId] || state.messages[replyId] || state.pendingNote || null
-    state.notes.push({ ...(target ? { designId: target.designId, caseId: target.caseId } : {}),
+    state.notes.push({ revision: target?.revision || REVISION, ...(target ? { designId: target.designId, caseId: target.caseId } : {}),
       text: ctx.message.text, at: new Date().toISOString() })
     state.pendingNote = null
     event('note', { ...(target ? { designId: target.designId, caseId: target.caseId } : {}) })
