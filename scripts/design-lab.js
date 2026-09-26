@@ -150,6 +150,13 @@ function createLab(owner, state, persist, botToken = token, botInfo, pairing = {
   })
   bot.on('message:text', async (ctx) => {
     const replyId = ctx.message.reply_to_message?.message_id
+    const preview = readLive('previews.json')?.[replyId]
+    if (preview) {
+      state.notes.push({ source: 'live', revision: preview.revision, messageId: replyId, text: ctx.message.text, at: new Date().toISOString() })
+      event('note', { source: 'live', revision: preview.revision })
+      await ctx.reply('Сохранил замечание к уведомлению.')
+      return
+    }
     const liveSession = readLive('control.json')?.session
     if (liveSession && /^[a-f0-9]{8}$/.test(liveSession) && readLive(`session-${liveSession}.json`)?.messages?.[replyId]) {
       state.notes.push({ source: 'live', liveSession, messageId: replyId, text: ctx.message.text, at: new Date().toISOString() })

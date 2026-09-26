@@ -44,8 +44,11 @@ function amountText(action, metadata) {
   }
   if (['nft_transfer', 'nft_mint'].includes(action.type)) {
     const token = metadataFor(metadata, details.nft_item)
-    const name = token?.name || 'NFT'
-    return `🖼 ${linkAddress(details.nft_item, compactText(name, 64))}`
+    const name = String(token?.name || 'NFT')
+    const number = name.match(/ #\d{1,12}$/u)?.[0]
+    const label = number && Array.from(name).length > 40
+      ? compactText(name.slice(0, -number.length), 40 - number.length) + number : compactText(name, 40)
+    return `🖼 ${linkAddress(details.nft_item, label)}`
   }
   if (action.type === 'jetton_swap') {
     const incoming = details.dex_incoming_transfer
@@ -62,7 +65,7 @@ function amountText(action, metadata) {
     return `💎 ${assetAmount(details.amount, null, metadata)}`
   }
   if (action.type === 'stake_withdrawal_request') {
-    return details.amount !== undefined ? `Requested: ${assetAmount(details.amount, details.asset, metadata)}` : ''
+    return details.amount !== undefined ? assetAmount(details.amount, details.asset, metadata) : ''
   }
   if (details.value !== undefined && /^\d+$/.test(String(details.value))) {
     return `💎 ${escapeHtml(formatUnits(details.value))} TON`
@@ -97,11 +100,11 @@ function linkAddress(address, label) {
   return `<a href="https://tonscan.org/address/${encodeURIComponent(friendly)}">${escapeHtml(label || shortAddress(address))}</a>`
 }
 
-function formatAction(action, watched, record, metadata = {}) {
+function formatNotification(action, watched, record, metadata = {}) {
   const d = action.details || {}
   const stakingIn = ['stake_deposit', 'stake_withdrawal_request'].includes(action.type)
   const stakingOut = action.type === 'stake_withdrawal'
-  const source = d.source || d.sender || d.real_old_owner || d.old_owner
+  const source = (action.type === 'nft_transfer' ? d.real_old_owner : null) || d.source || d.sender || d.old_owner
     || (action.type === 'jetton_burn' ? d.owner : stakingIn ? d.stake_holder : stakingOut ? d.pool : null)
   const destination = d.destination || d.receiver || d.new_owner
     || (action.type === 'nft_mint' ? d.owner : stakingIn ? d.pool : stakingOut ? d.stake_holder : null)
@@ -110,30 +113,64 @@ function formatAction(action, watched, record, metadata = {}) {
     ? 'Self' : rawAddress(source) === watchedRaw ? 'Send'
       : rawAddress(destination) === watchedRaw ? 'Receive' : 'Activity'
   const transfer = ['ton_transfer', 'jetton_transfer', 'nft_transfer'].includes(action.type)
-  const title = transfer && direction !== 'Activity' ? direction : actionTitle(action)
-  const icon = action.success === false ? '⚠️' : action.type === 'jetton_swap' ? '🔄'
-    : direction === 'Send' ? '📤' : direction === 'Receive' ? '📥' : '🔔'
-  const tag = record?.tag ? compactText(record.tag, 24) : shortAddress(watched)
-  const party = (address) => linkAddress(address, rawAddress(address) === watchedRaw ? tag : undefined)
+  const briefAddress = (address) => {
+    const friendly = friendlyAddress(address)
+    return friendly ? `${friendly.slice(0, 5)}…${friendly.slice(-5)}` : compactText(address || 'unknown', 16)
+  }
+  const tag = record?.tag ? compactText(record.tag, 16) : briefAddress(watched)
+  const party = (address) => linkAddress(address, rawAddress(address) === watchedRaw ? tag : briefAddress(address))
   let route = source && destination && rawAddress(source) !== rawAddress(destination)
     ? `${party(source)} → ${party(destination)}` : party(source || destination || watched)
   if ((source || destination) && ![rawAddress(source), rawAddress(destination)].includes(watchedRaw)) route = `${party(watched)} · ${route}`
-  const hash = action.transactions?.[0] || action.trace_id
-  const transaction = hash ? ` · <a href="https://tonscan.org/transaction/${encodeURIComponent(hash)}">tx ↗</a>` : ''
-  const heading = `${icon} <b>${action.success === false ? 'Failed · ' : ''}${escapeHtml(title)}</b> ${route}${transaction}`
-  const lines = [heading]
-  const amount = amountText(action, metadata)
-  const details = [amount]
-  if (d.nft_collection) details.push(linkAddress(d.nft_collection, 'collection'))
-  if (d.is_purchase && d.payout_amount) details.push(`Seller payout: ${assetAmount(d.payout_amount, null, metadata)}`)
-  if (d.dex || d.provider) details.push(linkAddress(d.pool, compactText(d.dex || d.provider, 24)))
-  else if (d.pool && ![rawAddress(source), rawAddress(destination)].includes(rawAddress(d.pool))) details.push(linkAddress(d.pool, 'pool'))
-  if (details.some(Boolean)) lines.push(details.filter(Boolean).join(' · '))
-  const comment = d.comment
-  if (comment && !d.encrypted && !d.is_encrypted_comment) {
-    lines.push(`💬 ${escapeHtml(compactText(comment, 160))}`)
+  if (direction === 'Self') route += ' · Self'
+  if (d.dex || d.provider) {
+    const service = String(d.dex || d.provider)
+    const label = /^stonfi(?:_v\d+)?$/i.test(service) ? 'STON.fi'
+      : /^dedust(?:_v\d+)?$/i.test(service) ? 'DeDust' : compactText(service, 20)
+    route = `${party(watched)} · ${linkAddress(d.pool, label)}`
   }
-  return lines.join('\n')
+  const hash = action.transactions?.[0] || action.trace_id
+  // Text presentation keeps this small instead of Telegram's square arrow emoji.
+  const transaction = hash ? `  <a href="https://tonscan.org/transaction/${encodeURIComponent(hash)}">↗︎</a>` : ''
+  const amount = amountText(action, metadata).replace(/^(?:💎|🪙|🖼)\s*/u, '')
+  let headline
+  if (action.success === false) {
+    headline = `⚠︎ <b>Failed · ${transfer ? amount || escapeHtml(actionTitle(action)) : escapeHtml(actionTitle(action)) + (amount ? ` · ${amount}` : '')}</b>`
+  } else if (transfer) {
+    const sign = direction === 'Send' ? '−' : direction === 'Receive' ? '+' : ''
+    if (action.type === 'nft_transfer') {
+      const purchase = d.is_purchase && ['Send', 'Receive'].includes(direction)
+        ? `${direction === 'Send' ? 'Sold' : 'Bought'} · ` : ''
+      const arrow = direction === 'Send' ? '↑' : direction === 'Receive' ? '↓' : '↔'
+      headline = `${arrow} <b>${purchase}${amount}</b>`
+    } else headline = `<b>${sign}${amount}</b>`
+  } else if (action.type === 'jetton_swap') {
+    const exchange = amount.replace(/<[^>]*>/g, '').length > 30 ? amount.replace(' → ', '\n→ ') : amount
+    headline = `⇄ <b>${exchange || 'Swap'}</b>`
+  } else {
+    headline = `<b>${escapeHtml(actionTitle(action))}</b>${amount ? ` · ${amount}` : ''}`
+  }
+  const lines = [`${headline}${transaction}`, route]
+  const details = []
+  if (d.nft_collection) details.push(linkAddress(d.nft_collection, 'Collection'))
+  if (d.is_purchase && d.payout_amount !== undefined) details.push(`Seller payout: ${assetAmount(d.payout_amount, null, metadata)}`)
+  if (d.pool && !d.dex && !d.provider && ![rawAddress(source), rawAddress(destination)].includes(rawAddress(d.pool))) details.push(linkAddress(d.pool, 'Pool'))
+  const comment = d.comment && !d.encrypted && !d.is_encrypted_comment ? compactText(d.comment, 2048) : ''
+  // A payment reference stays available verbatim; its human part is only a quote,
+  // never used to classify the transaction as a verified purchase.
+  const excerpt = comment.replace(/\s+Ref#[A-Za-z0-9_-]+$/u, '')
+  const foldComment = comment && (comment.length > 60 || excerpt !== comment)
+  if (comment && !foldComment) lines.push(`<i>${escapeHtml(comment)}</i>`)
+  if (foldComment) details.push(escapeHtml(comment))
+  const summary = foldComment ? `“${escapeHtml(compactText(excerpt, 42))}”` : 'Details'
+  return {
+    text: [...lines, ...details].join('\n'),
+    richHtml: details.length ? `<p>${lines.join('<br>').replaceAll('\n', '<br>')}</p><details><summary>${summary}</summary><p>${details.join('<br>')}</p></details>` : undefined,
+  }
+}
+
+function formatAction(action, watched, record, metadata = {}) {
+  return formatNotification(action, watched, record, metadata).text
 }
 
 function passesFilters(record, action) {
@@ -150,4 +187,4 @@ function passesFilters(record, action) {
   return true
 }
 
-module.exports = { escapeHtml, participants, metadataFor, formatAction, passesFilters }
+module.exports = { escapeHtml, participants, metadataFor, formatAction, formatNotification, passesFilters }

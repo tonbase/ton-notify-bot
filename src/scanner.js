@@ -3,7 +3,7 @@ const { Api } = require('grammy')
 const { config, requireBotToken } = require('./config')
 const { mongoose, Address, User, Counter, Delivery, TraceTask } = require('./models')
 const { rawAddress } = require('./address')
-const { participants, formatAction, passesFilters } = require('./events')
+const { participants, formatNotification, passesFilters } = require('./events')
 const { toNano } = require('./amount')
 const { TonCenter, sleep } = require('./toncenter')
 const { safeError, shutdownSignal, connectDatabase, workerLoop, health } = require('./runtime')
@@ -14,14 +14,15 @@ function deliveryId(actionId, recipient) {
   return crypto.createHash('sha256').update(`${actionId}|${recipient}`).digest('hex')
 }
 
-async function enqueue(action, recipient, text, record) {
+async function enqueue(action, recipient, notification, record) {
   const id = deliveryId(action.action_id, record ? String(record._id) : `channel:${recipient}`)
   try {
     await Delivery.updateOne({ _id: id }, { $setOnInsert: {
       _id: id, status: 'pending', attempts: 0, chat_id: recipient,
       user_id: record ? String(record.user_id) : '',
       address_id: record ? String(record._id) : '',
-      action_id: action.action_id, text, created_at: new Date(), next_attempt_at: new Date(0),
+      action_id: action.action_id, text: notification.text, rich_html: notification.richHtml,
+      created_at: new Date(), next_attempt_at: new Date(0),
     } }, { upsert: true })
   } catch (error) {
     if (error.code !== 11000) throw error
@@ -60,10 +61,10 @@ async function routeAction(action, metadata, watched, excluded = new Set()) {
   }
   for (const record of matching.values()) {
     if (!watched.active.has(record.user_id) || !passesFilters(record, action)) continue
-    await enqueue(action, record.user_id, formatAction(action, record.address, record, metadata), record)
+    await enqueue(action, record.user_id, formatNotification(action, record.address, record, metadata), record)
   }
   if (channelEligible(action)) {
-    await enqueue(action, config.channelId, formatAction(action, action.details.source || action.details.destination, null, metadata), null)
+    await enqueue(action, config.channelId, formatNotification(action, action.details.source || action.details.destination, null, metadata), null)
   }
 }
 
@@ -295,9 +296,18 @@ async function sendPending(api, state = {}, { maxMessages = 100, chatId } = {}) 
     }
     try {
       state.chats.set(String(delivery.chat_id), Date.now() + (Number(delivery.chat_id) < 0 ? 3100 : 1100))
-      await api.sendMessage(delivery.chat_id, delivery.text, {
+      const sendText = () => api.sendMessage(delivery.chat_id, delivery.text, {
         parse_mode: 'HTML', link_preview_options: { is_disabled: true },
       })
+      if (delivery.rich_html && typeof api.sendRichMessage === 'function') {
+        try { await api.sendRichMessage(delivery.chat_id, { html: delivery.rich_html, skip_entity_detection: true }) }
+        catch (error) {
+          // Only an explicit rejection allows a second send without risking an
+          // accepted rich message also being delivered as plain text.
+          if ((error.error_code || error.error?.error_code) !== 400) throw error
+          await sendText()
+        }
+      } else await sendText()
       await Delivery.updateOne({ _id: delivery._id }, { $set: { status: 'sent', sent_at: new Date() }, $unset: { lease_until: 1, last_error: 1 } })
       sent += 1
       if (delivery.address_id) {

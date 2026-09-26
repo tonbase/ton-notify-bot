@@ -13,7 +13,9 @@ Telegram bot on [grammY](https://grammy.dev/) with a [TON Center v3](https://ton
 
 The bot preserves address management, tags, minimum TON amounts, exact comment inclusion/exclusion filters, deletion/undo, and address sharing. The minimum TON setting does not suppress jetton or NFT actions.
 
-Notifications use a compact layout: direction, participants and transaction link on the first line; amount or NFT on the second; an optional comment on the third. Token symbols and NFT names are links, swap amounts share one line, and collection/DEX links stay beside the amounts. Display tags are shortened to 24 characters and comments to 160, with whitespace collapsed; stored tags and exact-match filters keep the original values. Telegram may wrap long lines on narrow screens.
+Notifications put the amount or NFT first, with a small transaction link. The next line shows the participants with short address labels; the display tag is limited to 16 characters. Successful incoming/outgoing transfers use plus/minus signs; failed and self transfers do not imply a balance change. Long swap amounts break between the two assets. Short comments remain visible; long comments, payment references, NFT collections and seller payouts use native Rich Message details. Comments retain up to 2,048 characters, and reference text stays available under its quoted summary. Stored tags and exact-match filters keep the original values. Telegram may wrap long lines on narrow screens.
+
+The delivery queue stores plain HTML alongside optional rich HTML. Older queue entries remain readable. An explicit Telegram 400 rejection of rich formatting falls back to the plain message; timeouts and ambiguous failures use the usual retry path.
 
 ## Checks
 

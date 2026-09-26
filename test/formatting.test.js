@@ -1,6 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { formatAction, participants } = require('../src/events')
+const { formatAction, formatNotification, participants } = require('../src/events')
 const A = `0:${'A'.repeat(64)}`
 const T = `0:${'B'.repeat(64)}`
 const metadata = { [T]: { token_info: [{ symbol: 'USDT', extra: { decimals: '6' } }] } }
@@ -27,6 +27,34 @@ test('NFT purchase direction uses real seller and distinguishes payout from pric
   const text = formatAction({ type: 'nft_transfer', details: {
     old_owner: T, real_old_owner: A, is_purchase: true, payout_amount: '5000000000',
   } }, A)
-  assert.match(text, /📤 <b>Send<\/b>/)
+  assert.match(text, /^↑ <b>Sold · /)
   assert.match(text, /Seller payout: 5 TON/)
+})
+
+test('collapsed comments preserve references and escape HTML without claiming a purchase', () => {
+  const comment = '90 Telegram Stars Ref#example123'
+  const action = { type: 'ton_transfer', success: true, transactions: ['test/hash'], details: {
+    source: A, destination: T, value: '919800000', comment,
+  } }
+  const output = formatNotification(action, A, { tag: 'Main wallet' })
+  assert.match(plain(output.text).split('\n')[0], /^−0.9198 TON/)
+  assert.match(output.richHtml, /<summary>“90 Telegram Stars”<\/summary>/)
+  assert(output.richHtml.includes(comment))
+  assert(!output.richHtml.includes('Bought'))
+  assert(output.richHtml.includes('test%2Fhash'))
+  action.details.comment = '<b>Untrusted</b> '.repeat(10)
+  assert(formatNotification(action, A).richHtml.includes('&lt;b&gt;Untrusted&lt;/b&gt;'))
+  action.details.encrypted = true
+  assert(!formatNotification(action, A).text.includes('Untrusted'))
+})
+
+test('failed and self transfers never imply a successful balance change', () => {
+  const action = { type: 'ton_transfer', success: false, details: { source: A, destination: T, value: '1000000000' } }
+  const failed = plain(formatNotification(action, A).text)
+  assert.match(failed, /^⚠︎ Failed · 1 TON/)
+  assert(!failed.includes('−1 TON'))
+  action.success = true; action.details.destination = A
+  const self = plain(formatNotification(action, A).text)
+  assert.match(self, /^1 TON/)
+  assert.match(self, /Self/)
 })

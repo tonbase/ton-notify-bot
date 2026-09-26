@@ -35,7 +35,7 @@ const counterSchema = new mongoose.Schema({ name: { type: String, unique: true }
 const deliverySchema = new mongoose.Schema({
   _id: String, status: String, lease_until: Date, attempts: Number,
   user_id: String, address_id: String, action_id: String, sent_at: Date,
-  last_error: String, chat_id: mongoose.Schema.Types.Mixed, text: String,
+  last_error: String, chat_id: mongoose.Schema.Types.Mixed, text: String, rich_html: String,
   next_attempt_at: Date, created_at: Date,
 }, { ...opts, collection: 'notification_deliveries' })
 const traceTaskSchema = new mongoose.Schema({

@@ -11,13 +11,14 @@ function validateOwner(owner) {
 
 function privateSender(api, owner, isEnabled, onSent) {
   validateOwner(owner)
-  return { sendMessage: async (chatId, text, options) => {
+  const send = (method) => async (chatId, body, options) => {
     if (chatId !== owner.chatId) throw { error_code: 400, description: 'Live recipient is not the registered owner' }
     if (!isEnabled()) throw { error_code: 429, description: 'Live session stopped', parameters: { retry_after: 60 } }
-    const result = await api.sendMessage(owner.chatId, text, { ...options, disable_notification: true })
+    const result = await api[method](owner.chatId, body, { ...options, disable_notification: true })
     await onSent(result)
     return result
-  } }
+  }
+  return { sendMessage: send('sendMessage'), sendRichMessage: send('sendRichMessage') }
 }
 
 async function main() {
@@ -84,7 +85,7 @@ async function main() {
       }
       await User.updateOne({ user_id: owner.userId }, { $set: { first_name: 'Private live test', is_blocked: false, is_deactivated: false } }, { upsert: true })
       for (const sample of samples) await Address.updateOne({ user_id: owner.userId, address: sample.address },
-        { $set: { tag: `Публичный · ${sample.label}`, is_deleted: false, 'notifications.is_enabled': true } }, { upsert: true })
+        { $set: { tag: `${sample.label}-1`, is_deleted: false, 'notifications.is_enabled': true } }, { upsert: true })
       const watched = await loadWatched()
       for (const sample of samples) await routeAction(sample.action, sample.metadata, watched)
       session = { startedAt: control.startedAt, addresses: samples.map(({ address, type, label }) => ({ address, type, label })),
