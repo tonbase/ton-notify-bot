@@ -101,6 +101,33 @@ test('display amounts preserve all significant digits without approximation', ()
   assert.equal(formatDisplayUnits('12345', 18), '0.000000000000012345')
   assert.equal(formatDisplayUnits('123456789123456789'), '123,456,789.123456789')
   assert.equal(formatDisplayUnits('25000000', 6), '25')
+  assert.equal(formatDisplayUnits('1', 255), `0.${'0'.repeat(254)}1`)
+})
+
+test('jettons default omitted decimals to nine but do not invent precision for missing or invalid metadata', () => {
+  const action = { type: 'jetton_transfer', success: false, transactions: ['hash'], details: {
+    sender: A, receiver: T, asset: T, amount: '45485863940',
+  } }
+  const token = { valid: true, type: 'jetton_masters', symbol: 'ECOR' }
+  const metadata = { [T]: { token_info: [token] } }
+  let output = formatNotification(action, A, null, metadata)
+  assert.match(plain(output.text), /Transfer failed · 45\.48586394 ECOR/)
+  assert(!output.richHtml.includes('base units'))
+  for (const [decimals, expected] of [['0', '45,485,863,940'], ['6', '45,485.86394']]) {
+    token.extra = { decimals }
+    assert(plain(formatNotification(action, A, null, metadata).text).includes(`${expected} ECOR`))
+  }
+  action.success = true
+  for (const decimals of ['', 'nope', '1e2', -1, 256, true, []]) {
+    token.extra = { decimals }
+    output = formatNotification(action, A, null, metadata)
+    assert.match(plain(output.text), /ECOR \(amount unavailable\)/)
+    assert(!output.text.includes('45485863940'))
+    assert(!output.text.includes('−'))
+  }
+  output = formatNotification(action, A)
+  assert.match(plain(output.text), /jetton \(amount unavailable\)/)
+  assert(!output.text.includes('45.48586394'))
 })
 
 test('asset icons distinguish native GRAM and the official USDt master from ticker lookalikes', () => {

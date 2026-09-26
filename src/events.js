@@ -28,14 +28,24 @@ function participants(action) {
   return [...new Set(values.map(rawAddress).filter(Boolean))]
 }
 
+function jettonDecimals(token) {
+  if (!token) return null
+  const value = token.extra?.decimals ?? token.decimals
+  // TEP-64 defaults to 9 only when loaded metadata omits this optional field.
+  // An unavailable metadata record does not establish a token's precision.
+  if (value == null) return 9
+  if (!['string', 'number'].includes(typeof value) || !/^\d{1,3}$/.test(String(value))) return null
+  const decimals = Number(value)
+  return decimals <= 255 ? decimals : null
+}
+
 function assetAmount(amount, asset, metadata) {
   if (asset === null) return `${assetIcon(null)}${escapeHtml(formatDisplayUnits(amount || '0'))} GRAM`
   const token = metadataFor(metadata, asset)
-  const decimalsValue = token?.extra?.decimals ?? token?.decimals
-  const decimals = decimalsValue === undefined ? null : Number(decimalsValue)
+  const decimals = jettonDecimals(token)
   const symbol = compactText(token?.symbol || token?.name || 'jetton', 24)
-  const quantity = Number.isInteger(decimals) && decimals >= 0 && decimals <= 30
-    ? formatDisplayUnits(amount || '0', decimals) : `${amount || '0'} base units`
+  if (decimals === null) return `${linkAddress(asset, symbol)} (amount unavailable)`
+  const quantity = formatDisplayUnits(amount || '0', decimals)
   return `${assetIcon(asset)}${escapeHtml(quantity)} ${linkAddress(asset, symbol)}`
 }
 
@@ -121,7 +131,8 @@ function assetIcon(asset) {
 
 function signedAmount(amount, sign) {
   const icon = amount.match(/^<tg-emoji\b[^>]*>.*?<\/tg-emoji> /u)?.[0] || ''
-  return `${icon}${sign}${amount.slice(icon.length)}`
+  const quantity = amount.slice(icon.length)
+  return `${icon}${/^\d/u.test(quantity) ? sign : ''}${quantity}`
 }
 
 function eventIcon(action, direction) {

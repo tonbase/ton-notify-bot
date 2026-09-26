@@ -1,7 +1,7 @@
 function formatUnits(value, decimals = 9, maxFraction = 9) {
   const negative = String(value).startsWith('-')
   const digits = String(value).replace(/^-/, '')
-  if (!/^\d+$/.test(digits) || !Number.isInteger(decimals) || decimals < 0 || decimals > 30) {
+  if (!/^\d+$/.test(digits) || !Number.isInteger(decimals) || decimals < 0 || decimals > 255) {
     return String(value)
   }
   const padded = digits.padStart(decimals + 1, '0')
