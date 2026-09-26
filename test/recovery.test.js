@@ -84,3 +84,21 @@ test('a failed trace request does not prevent other due traces from finishing', 
   await assert.rejects(reconcileTraces(client), /temporary upstream failure/)
   assert.deepEqual(finished, ['healthy'])
 })
+
+test('a large trace backlog leaves request capacity for scanning and delivery', async (t) => {
+  const tasks = Array.from({ length: 100 }, (_, i) => ({ _id: String(i), trace_id: String(i), attempts: 0 }))
+  let active = 0, maximum = 0, calls = 0
+  t.mock.method(TraceTask, 'find', () => ({ sort: () => ({ limit: () => ({ lean: async () => tasks }) }) }))
+  t.mock.method(TraceTask, 'updateOne', async () => {})
+  t.mock.method(Address, 'find', () => ({ lean: async () => [] }))
+  t.mock.method(User, 'find', () => ({ lean: async () => [] }))
+  const result = await reconcileTraces({ get: async () => {
+    active++; calls++; maximum = Math.max(maximum, active)
+    await new Promise(resolve => setImmediate(resolve))
+    active--
+    return { traces: [] }
+  } })
+  assert.equal(calls, 100)
+  assert.equal(maximum, 4)
+  assert.equal(result.catchingUp, true)
+})

@@ -164,7 +164,7 @@ async function reconcileTraces(client) {
     .sort({ next_attempt_at: 1 }).limit(100).lean()
   if (!tasks.length) return { pendingChecked: 0 }
   const watched = await loadWatched()
-  const results = await Promise.allSettled(tasks.map(async (task) => {
+  const processTask = async (task) => {
     // Schedule before network I/O; one failing trace cannot starve later tasks.
     await TraceTask.updateOne({ _id: task._id }, { $inc: { attempts: 1 },
       $set: { next_attempt_at: new Date(Date.now() + Math.min(10000 * 2 ** Math.min(task.attempts, 8), 3600000)) } })
@@ -196,6 +196,17 @@ async function reconcileTraces(client) {
       await routeAction(action, page.metadata || {}, watched)
     }
     await TraceTask.updateOne({ _id: task._id }, { $set: { status: 'done' } })
+  }
+  const results = []
+  let nextTask = 0
+  // Leave HTTP and database capacity for block scanning and delivery while
+  // draining a large trace backlog. Starting all 100 tasks starves those loops.
+  await Promise.all(Array.from({ length: Math.min(4, tasks.length) }, async () => {
+    while (nextTask < tasks.length) {
+      const task = tasks[nextTask++]
+      try { await processTask(task) }
+      catch (error) { results.push({ status: 'rejected', reason: error }) }
+    }
   }))
   const failed = results.find((result) => result.status === 'rejected')
   if (failed) throw failed.reason
