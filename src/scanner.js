@@ -5,7 +5,7 @@ const { mongoose, Address, User, Counter, Delivery, TraceTask } = require('./mod
 const { rawAddress } = require('./address')
 const { participants, formatNotification, passesFilters } = require('./events')
 const { toNano } = require('./amount')
-const { TonCenter, sleep } = require('./toncenter')
+const { TonCenter, RequestLimiter, sleep } = require('./toncenter')
 const { safeError, shutdownSignal, connectDatabase, workerLoop, health } = require('./runtime')
 
 const CURSOR_NAME = 'actions_scan_v1'
@@ -404,6 +404,36 @@ async function sendPending(api, state = {}, { maxMessages = 100, chatId, batchSi
   return sent
 }
 
+async function sendPendingParallel(api, state = {}, { maxMessages = 100, batchSize = 1, concurrency = 4 } = {}) {
+  let sent = 0
+  state.chats ||= new Map()
+  for (let round = 0; round < Math.ceil(maxMessages / concurrency) && sent < maxMessages; round += 1) {
+    if (state.cooldownUntil > Date.now()) break
+    const excluded = []
+    for (const [chat, until] of state.chats) {
+      if (until <= Date.now()) { state.chats.delete(chat); continue }
+      excluded.push(chat)
+      if (/^-?\d+$/.test(chat)) excluded.push(Number(chat))
+    }
+    const now = new Date()
+    const candidates = await Delivery.find({
+      status: { $in: ['pending', 'sending'] }, next_attempt_at: { $lte: now },
+      $or: [{ status: 'pending' }, { lease_until: { $lte: now } }],
+      ...(excluded.length ? { chat_id: { $nin: excluded } } : {}),
+    }).sort({ created_at: 1 }).limit(200).select({ chat_id: 1, _id: 0 }).lean()
+    const chats = [...new Map(candidates.map((item) => [String(item.chat_id), item.chat_id])).values()]
+      .slice(0, Math.min(concurrency, maxMessages - sent))
+    if (!chats.length) break
+    // A chat appears once per round; the shared cooldown excludes it from
+    // subsequent rounds. Distinct chats can await Telegram concurrently.
+    const results = await Promise.allSettled(chats.map((chatId) => sendPending(api, state, { maxMessages: 1, chatId, batchSize })))
+    for (const result of results) if (result.status === 'fulfilled') sent += result.value
+    const failed = results.find((result) => result.status === 'rejected')
+    if (failed) throw failed.reason
+  }
+  return sent
+}
+
 async function main() {
   if (config.sendNotifications) requireBotToken()
   const signal = shutdownSignal()
@@ -423,8 +453,13 @@ async function main() {
     workerLoop('traces', () => reconcileTraces(client), { signal, intervalMs: 5000 })]
   if (config.sendNotifications) {
     const api = new Api(config.botToken, { timeoutSeconds: 30 })
+    const limiter = new RequestLimiter(25, 4)
+    const sender = {
+      sendMessage: (...args) => limiter.run(() => api.sendMessage(...args)),
+      sendRichMessage: (...args) => limiter.run(() => api.sendRichMessage(...args)),
+    }
     const deliveryState = {}
-    workers.push(workerLoop('delivery', async () => ({ sent: await sendPending(api, deliveryState, { batchSize: config.notificationBatchSize }) }), { signal, intervalMs: 250 }))
+    workers.push(workerLoop('delivery', async () => ({ sent: await sendPendingParallel(sender, deliveryState, { batchSize: config.notificationBatchSize }) }), { signal, intervalMs: 250 }))
   } else {
     await health('delivery', { status: 'disabled' })
   }
@@ -434,4 +469,4 @@ async function main() {
 
 if (require.main === module) main().catch((error) => { console.error(safeError(error)); process.exit(1) })
 
-module.exports = { deliveryId, routeAction, routeEntries, scanBlock, scanCycle, reconcileTraces, sendPending, loadWatched, channelEligible, shouldSuppress, rawFallbacks }
+module.exports = { deliveryId, routeAction, routeEntries, scanBlock, scanCycle, reconcileTraces, sendPending, sendPendingParallel, loadWatched, channelEligible, shouldSuppress, rawFallbacks }
