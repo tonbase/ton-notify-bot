@@ -17,6 +17,7 @@ Audited against commit `2580764184bb815872351078a7b84aa47296e18a`.
 | Tags | Store full tags. Escape HTML and shorten only the displayed label. Never expose another user's private tag or use one in channel output. | bot smoke, compatibility tests |
 | Known account names | Restore the public Tonscan address book and the current user's counterparty labels. Failed refreshes retain the last in-memory snapshot and do not stop scanning. | compatibility tests |
 | Excluded accounts | Restore the five legacy exclusions for native transfers, comparing normalized identities and applying them before user and channel delivery. New staking/NFT/jetton action types remain supported. | compatibility tests |
+| USD estimates | Restore the approximate USD equivalent beside native GRAM amounts in private and channel notifications. Cache OKX GRAM/USDT prices, expire stale quotes and keep delivery independent of price availability. | price and formatting tests |
 | Legacy settings shape | Read `notifications:false` as disabled. Replace it with structured settings only when its owner edits them; editing a threshold does not enable delivery. | bot smoke with a raw legacy MongoDB document |
 | Legacy sessions/buttons | Resume `editTag`, `editMinAmount`, `editExceptions` from `__scenes`; respect expiry. Support old Reset/Clear buttons using the owner's persisted address context. Keep existing callback IDs, list pages, delete/undo and deep links. | compatibility tests, bot smoke |
 | Access checks | Private chats only; every address mutation checks ownership and deleted state. Blocking and unblocking retain their semantics. | bot smoke and delivery tests |
@@ -24,7 +25,7 @@ Audited against commit `2580764184bb815872351078a7b84aa47296e18a`.
 
 ## Deliberate changes
 
-- Use the approved compact design, GRAM ticker, asset/event icons and inline `tx` link. Wallet balances and USD estimates from the old verbose template are absent.
+- Use the approved compact design, GRAM ticker, asset/event icons and inline `tx` link. Wallet balances from the old verbose template are absent.
 - Show exact token amounts; trim trailing zeroes only. The old truncation of transfers at 10 native coins is not retained. Thousands use the approved comma grouping.
 - Minimum GRAM amounts apply to native transfers. Jetton/NFT/staking events are not silently compared with a GRAM threshold or converted at an assumed exchange rate.
 - Validate addresses locally, so adding an address does not depend on a successful node RPC.

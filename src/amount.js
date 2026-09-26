@@ -41,4 +41,16 @@ function formatDisplayUnits(value, decimals = 9) {
   return formatUnits(value, decimals, decimals)
 }
 
-module.exports = { formatUnits, formatDisplayUnits, toNano, scaledInteger }
+// Only the USD estimate is rounded. Native nano amounts remain exact.
+function formatTonUsd(value, price) {
+  const amount = scaledInteger(value)
+  const rate = scaledInteger(price, 12)
+  if (amount === null || rate === null || rate.length > 24 || BigInt(rate) <= 0n) return ''
+  const product = BigInt(amount) * BigInt(rate)
+  const cent = 10n ** 19n // 9 native decimals + 12 rate decimals - 2 USD decimals.
+  if (product > 0n && product < cent) return '<$0.01'
+  const cents = (product + cent / 2n) / cent
+  return `$${(cents / 100n).toLocaleString('en-US')}.${String(cents % 100n).padStart(2, '0')}`
+}
+
+module.exports = { formatUnits, formatDisplayUnits, formatTonUsd, toNano, scaledInteger }

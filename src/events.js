@@ -1,5 +1,5 @@
 const { rawAddress, friendlyAddress, shortAddress } = require('./address')
-const { formatDisplayUnits, scaledInteger } = require('./amount')
+const { formatDisplayUnits, formatTonUsd, scaledInteger } = require('./amount')
 
 // Official USDt master: https://tether.to/en/supported-protocols/
 const USDT_MASTER = rawAddress('EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs')
@@ -52,8 +52,11 @@ function jettonDecimals(token) {
   return decimals <= 255 ? decimals : null
 }
 
-function assetAmount(amount, asset, metadata) {
-  if (asset === null) return `${assetIcon(null)}${escapeHtml(formatDisplayUnits(amount || '0'))} GRAM`
+function assetAmount(amount, asset, metadata, tonUsdRate) {
+  if (asset === null) {
+    const usd = formatTonUsd(amount, tonUsdRate)
+    return `${assetIcon(null)}${escapeHtml(formatDisplayUnits(amount || '0'))} GRAM${usd ? ` (≈ ${escapeHtml(usd)})` : ''}`
+  }
   const token = metadataFor(metadata, asset)
   const decimals = jettonDecimals(token)
   const symbol = compactText(token?.symbol || token?.name || 'jetton', 24)
@@ -62,11 +65,12 @@ function assetAmount(amount, asset, metadata) {
   return `${assetIcon(asset)}${escapeHtml(quantity)} ${linkAddress(asset, symbol)}`
 }
 
-function amountText(action, metadata) {
+function amountText(action, metadata, tonUsdRate) {
   const details = action.details || {}
-  if (action.type === 'ton_transfer') return `💎 ${assetAmount(details.value, null, metadata)}`
+  const amount = (value, asset) => assetAmount(value, asset, metadata, tonUsdRate)
+  if (action.type === 'ton_transfer') return `💎 ${amount(details.value, null)}`
   if (['jetton_transfer', 'jetton_mint', 'jetton_burn'].includes(action.type)) {
-    return `🪙 ${assetAmount(details.amount, details.asset, metadata)}`
+    return `🪙 ${amount(details.amount, details.asset)}`
   }
   if (['nft_transfer', 'nft_mint'].includes(action.type)) {
     const token = metadataFor(metadata, details.nft_item)
@@ -79,27 +83,27 @@ function amountText(action, metadata) {
   if (action.type === 'jetton_swap') {
     const incoming = details.dex_incoming_transfer
     const outgoing = details.dex_outgoing_transfer
-    if (incoming && outgoing) return `${assetAmount(incoming.amount, incoming.asset, metadata)} → ${assetAmount(outgoing.amount, outgoing.asset, metadata)}`
-    return incoming ? `Out: ${assetAmount(incoming.amount, incoming.asset, metadata)}`
-      : outgoing ? `In: ${assetAmount(outgoing.amount, outgoing.asset, metadata)}` : ''
+    if (incoming && outgoing) return `${amount(incoming.amount, incoming.asset)} → ${amount(outgoing.amount, outgoing.asset)}`
+    return incoming ? `Out: ${amount(incoming.amount, incoming.asset)}`
+      : outgoing ? `In: ${amount(outgoing.amount, outgoing.asset)}` : ''
   }
   if (['dex_deposit_liquidity', 'dex_withdraw_liquidity'].includes(action.type)) {
     return `🪙 ${[1, 2].filter((index) => details[`amount_${index}`] !== undefined)
-      .map((index) => assetAmount(details[`amount_${index}`], details[`asset_${index}`], metadata)).join(' + ')}`
+      .map((index) => amount(details[`amount_${index}`], details[`asset_${index}`])).join(' + ')}`
   }
   if (['stake_deposit', 'stake_withdrawal', 'election_deposit', 'election_recover'].includes(action.type)) {
-    return `💎 ${assetAmount(details.amount, null, metadata)}`
+    return `💎 ${amount(details.amount, null)}`
   }
   if (action.type === 'stake_withdrawal_request') {
-    return details.amount !== undefined ? assetAmount(details.amount, details.asset, metadata) : ''
+    return details.amount !== undefined ? amount(details.amount, details.asset) : ''
   }
-  if (action.type === 'auction_bid') return assetAmount(details.amount, null, metadata)
+  if (action.type === 'auction_bid') return amount(details.amount, null)
   if (['change_dns', 'delete_dns', 'renew_dns'].includes(action.type)) {
     const domain = metadataFor(metadata, details.asset)
     return domain?.name ? linkAddress(details.asset, compactText(domain.name, 40)) : ''
   }
   if (details.value !== undefined && /^\d+$/.test(String(details.value))) {
-    return BigInt(details.value) === 0n ? '' : `💎 ${assetAmount(details.value, null, metadata)}`
+    return BigInt(details.value) === 0n ? '' : `💎 ${amount(details.value, null)}`
   }
   if (details.amount !== undefined) return `Amount: ${escapeHtml(details.amount)} base units`
   return ''
@@ -180,7 +184,7 @@ function eventIcon(action, direction) {
   return icons[action.type] || { emoji: '🔔', customId: '5370648903324554299' }
 }
 
-function formatNotification(action, watched, record, metadata = {}, resolveLabel = () => null) {
+function formatNotification(action, watched, record, metadata = {}, resolveLabel = () => null, tonUsdRate = null) {
   const d = action.details || {}
   const stakingIn = ['stake_deposit', 'stake_withdrawal_request'].includes(action.type)
   const stakingOut = action.type === 'stake_withdrawal'
@@ -217,14 +221,14 @@ function formatNotification(action, watched, record, metadata = {}, resolveLabel
   const hash = action.transactions?.[0] || action.trace_id
   const transactionUrl = hash ? `https://tonscan.org/transaction/${encodeURIComponent(hash)}` : null
   const transaction = transactionUrl ? ` · <a href="${escapeHtml(transactionUrl)}">tx</a>` : ''
-  const amount = amountText(action, metadata).replace(/^(?:💎|🪙|🖼)\s*/u, '')
+  const amount = amountText(action, metadata, tonUsdRate).replace(/^(?:💎|🪙|🖼)\s*/u, '')
   let headline
   if (action.success === false) {
     const label = transfer ? `${action.type === 'nft_transfer' ? 'NFT transfer' : 'Transfer'} failed`
       : `${actionTitle(action)} failed`
     // An outgoing swap leg in a failed action must not look like a completed receipt.
     const attempted = action.type === 'jetton_swap' ? (d.dex_incoming_transfer
-      ? assetAmount(d.dex_incoming_transfer.amount, d.dex_incoming_transfer.asset, metadata) : '') : amount
+      ? assetAmount(d.dex_incoming_transfer.amount, d.dex_incoming_transfer.asset, metadata, tonUsdRate) : '') : amount
     headline = `<b>${escapeHtml(label)}${attempted ? ` · ${attempted}` : ''}</b>`
   } else if (transfer) {
     const sign = direction === 'Send' ? '−' : direction === 'Receive' ? '+' : ''
@@ -246,8 +250,8 @@ function formatNotification(action, watched, record, metadata = {}, resolveLabel
   // The NFT name opens its item page, which also exposes the collection.
   if (['nft_transfer', 'nft_mint'].includes(action.type) && d.nft_collection && !d.nft_item) details.push(linkAddress(d.nft_collection, 'Collection'))
   if (action.success !== false && d.is_purchase) {
-    if (direction === 'Send' && d.payout_amount != null) details.push(`Seller payout: ${assetAmount(d.payout_amount, null, metadata)}`)
-    else if (d.price != null) details.push(`Price: ${assetAmount(d.price, null, metadata)}`)
+    if (direction === 'Send' && d.payout_amount != null) details.push(`Seller payout: ${assetAmount(d.payout_amount, null, metadata, tonUsdRate)}`)
+    else if (d.price != null) details.push(`Price: ${assetAmount(d.price, null, metadata, tonUsdRate)}`)
   }
   if (d.pool && !d.dex && !d.provider && ![rawAddress(source), rawAddress(destination)].includes(rawAddress(d.pool))) details.push(linkAddress(d.pool, 'Pool'))
   const comment = d.comment && !d.encrypted && !d.is_encrypted_comment ? String(d.comment) : ''
@@ -266,8 +270,8 @@ function formatNotification(action, watched, record, metadata = {}, resolveLabel
   return { text, richHtml: `<p>${richLines.join('\n').replaceAll('\n', '<br>')}</p>` }
 }
 
-function formatAction(action, watched, record, metadata = {}) {
-  return formatNotification(action, watched, record, metadata).text
+function formatAction(action, watched, record, metadata = {}, tonUsdRate = null) {
+  return formatNotification(action, watched, record, metadata, undefined, tonUsdRate).text
 }
 
 function passesFilters(record, action) {

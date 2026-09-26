@@ -55,6 +55,7 @@ async function main() {
   config.startSeqno = null
   const { mongoose, Address, User, Delivery, TraceTask } = require('../src/models')
   const { TonCenter } = require('../src/toncenter')
+  const { tonUsdPrice, REFRESH_MS } = require('../src/prices')
   const { participants } = require('../src/events')
   const { rawAddress } = require('../src/address')
   const { loadWatched, routeAction, scanCycle, reconcileTraces, sendPending } = require('../src/scanner')
@@ -70,6 +71,7 @@ async function main() {
     await Delivery.collection.createIndex({ status: 1, next_attempt_at: 1, created_at: 1 })
     await TraceTask.collection.createIndex({ status: 1, next_attempt_at: 1 })
     const client = new TonCenter()
+    await tonUsdPrice.refresh().catch(() => {})
     const sessionFile = `session-${control.session}.json`
     let session = readLive(sessionFile)
     if (!session) {
@@ -116,6 +118,7 @@ async function main() {
       controller.abort(); return false
     }
     await Promise.all([
+      workerLoop('prices', () => tonUsdPrice.refresh(), { signal, intervalMs: REFRESH_MS }),
       workerLoop('scanner', async () => {
         if (!guard()) return {}
         await scanCycle(client, scannerState)

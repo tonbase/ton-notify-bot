@@ -7,6 +7,7 @@ const { participants, formatNotification, passesFilters } = require('./events')
 const { toNano } = require('./amount')
 const { isExcludedTransfer, refreshAddressBook, resolveAccountLabel } = require('./address-book')
 const { TonCenter, RequestLimiter, sleep } = require('./toncenter')
+const { tonUsdPrice, REFRESH_MS } = require('./prices')
 const { safeError, shutdownSignal, connectDatabase, workerLoop, health } = require('./runtime')
 
 const CURSOR_NAME = 'actions_scan_v1'
@@ -70,12 +71,15 @@ async function routeAction(action, metadata, watched, excluded = new Set()) {
     for (const record of watched.map.get(participant) || []) matching.set(String(record._id), record)
   }
   const eligible = [...matching.values()].filter((record) => watched.active.has(record.user_id) && passesFilters(record, action))
+  // Snapshot once so private and channel recipients use the same cached rate.
+  // Price I/O runs independently and never delays routing or queue durability.
+  const tonUsdRate = tonUsdPrice.current()
   if (eligible.length > 1) {
     const existing = await Delivery.find({ _id: { $in: eligible.map((record) => deliveryId(action.action_id, String(record._id))) } })
       .select({ _id: 1 }).lean()
     const saved = new Set(existing.map((row) => row._id))
     const operations = eligible.filter((record) => !saved.has(deliveryId(action.action_id, String(record._id))))
-      .map((record) => deliveryOperation(action, record.user_id, formatNotification(action, record.address, record, metadata, label), record))
+      .map((record) => deliveryOperation(action, record.user_id, formatNotification(action, record.address, record, metadata, label, tonUsdRate), record))
     if (operations.length) {
       try { await Delivery.bulkWrite(operations, { ordered: false }) }
       catch (error) {
@@ -88,10 +92,10 @@ async function routeAction(action, metadata, watched, excluded = new Set()) {
     }
   } else if (eligible.length) {
     const record = eligible[0]
-    await enqueue(action, record.user_id, formatNotification(action, record.address, record, metadata, label), record)
+    await enqueue(action, record.user_id, formatNotification(action, record.address, record, metadata, label, tonUsdRate), record)
   }
   if (channelEligible(action)) {
-    await enqueue(action, config.channelId, formatNotification(action, action.details.source || action.details.destination, null, metadata, label), null)
+    await enqueue(action, config.channelId, formatNotification(action, action.details.source || action.details.destination, null, metadata, label, tonUsdRate), null)
   }
 }
 
@@ -476,6 +480,9 @@ async function main() {
   await TraceTask.collection.createIndex({ status: 1, next_attempt_at: 1 })
   const client = new TonCenter()
   const state = {}
+  // Bound startup warm-up to the price client's timeout; a price outage is
+  // optional enrichment and must not prevent any scanner worker from starting.
+  await tonUsdPrice.refresh().catch(() => {})
   console.log(`Scanner connected; Telegram delivery ${config.sendNotifications ? 'enabled' : 'disabled'}`)
   const workers = [workerLoop('scanner', async () => {
       await scanCycle(client, state)
@@ -483,7 +490,8 @@ async function main() {
       return { seqno: state.lastProcessed, tip: state.tip, lag, catchingUp: lag > 0 }
     }, { signal, intervalMs: config.scanIntervalMs }),
     workerLoop('traces', () => reconcileTraces(client), { signal, intervalMs: 5000 }),
-    workerLoop('address-book', () => refreshAddressBook(), { signal, intervalMs: 3600000 })]
+    workerLoop('address-book', () => refreshAddressBook(), { signal, intervalMs: 3600000 }),
+    workerLoop('prices', () => tonUsdPrice.refresh(), { signal, intervalMs: REFRESH_MS })]
   if (config.sendNotifications) {
     const api = new Api(config.botToken, { timeoutSeconds: 30 })
     // Telegram's free broadcast ceiling is approximate. Keep headroom so a
