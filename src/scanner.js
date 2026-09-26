@@ -274,6 +274,9 @@ async function scanCycle(client, state = {}) {
     console.log(`Scanner cursor initialized at ${seqno}`)
   }
   state.lastProcessed = seqno
+  // A deliberate cutover can be newer than the indexer's safety boundary.
+  // Wait for that block to mature before scanning or replaying it.
+  if (config.startSeqno !== null && tip < config.startSeqno) return state
   const watched = await loadWatched()
   const end = Math.min(tip, seqno + 40)
   for (let start = seqno + 1; start <= end; start += config.blockConcurrency) {

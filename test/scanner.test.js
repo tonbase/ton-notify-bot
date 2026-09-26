@@ -7,6 +7,18 @@ const { config } = require('../src/config')
 const A = `0:${'A'.repeat(64)}`
 const B = `0:${'B'.repeat(64)}`
 
+test('resetting to the latest block waits for indexer lag without replaying before the cutover', async (t) => {
+  const previousStart = config.startSeqno
+  config.startSeqno = 100
+  t.mock.method(Counter, 'findOne', () => ({ lean: async () => ({ data: { seqno: 99 } }) }))
+  t.mock.method(Address, 'find', () => { assert.fail('must wait before loading or replaying blocks') })
+  try {
+    const state = await scanCycle({ masterchainInfo: async () => ({ last: { seqno: 99 + config.lagBlocks } }) })
+    assert.equal(state.lastProcessed, 99)
+    assert.equal(state.tip, 99)
+  } finally { config.startSeqno = previousStart }
+})
+
 test('parallel blocks never commit beyond a failed block', async (t) => {
   let cursor = 41
   let failing = true
