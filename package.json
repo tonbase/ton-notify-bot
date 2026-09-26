@@ -9,6 +9,8 @@
     "inspect": "node src/inspect.js",
     "smoke": "node scripts/live-smoke.js",
     "smoke:bot": "node scripts/bot-smoke.js",
+    "smoke:recovery": "node scripts/recovery-smoke.js",
+    "health": "node scripts/health.js",
     "test": "node --test test/*.test.js",
     "check": "node --check src/bot.js && node --check src/scanner.js && node --test test/*.test.js"
   },

@@ -14,7 +14,8 @@ function formatUnits(value, decimals = 9, maxFraction = 9) {
 function toNano(value) {
   if (!/^(0|[1-9]\d*)(\.\d{1,9})?$/.test(value)) return null
   const [whole, fraction = ''] = value.split('.')
-  return (BigInt(whole) * 1000000000n + BigInt(fraction.padEnd(9, '0') || '0')).toString()
+  const nano = (BigInt(whole) * 1000000000n + BigInt(fraction.padEnd(9, '0') || '0')).toString()
+  return nano.length <= 34 ? nano : null
 }
 
 module.exports = { formatUnits, toNano }

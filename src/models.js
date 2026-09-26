@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+mongoose.set('bufferCommands', false)
 
 const opts = { versionKey: false, autoIndex: false }
 const addressSchema = new mongoose.Schema({
@@ -37,6 +38,10 @@ const deliverySchema = new mongoose.Schema({
   last_error: String, chat_id: mongoose.Schema.Types.Mixed, text: String,
   next_attempt_at: Date, created_at: Date,
 }, { ...opts, collection: 'notification_deliveries' })
+const traceTaskSchema = new mongoose.Schema({
+  _id: String, trace_id: String, tx_hash: String, status: String,
+  created_at: Date, next_attempt_at: Date, attempts: Number,
+}, { ...opts, collection: 'trace_tasks' })
 
 module.exports = {
   mongoose,
@@ -45,4 +50,5 @@ module.exports = {
   Session: mongoose.model('sessions', sessionSchema, 'sessions'),
   Counter: mongoose.model('counters', counterSchema, 'counters'),
   Delivery: mongoose.model('notification_delivery', deliverySchema, 'notification_deliveries'),
+  TraceTask: mongoose.model('trace_task', traceTaskSchema, 'trace_tasks'),
 }

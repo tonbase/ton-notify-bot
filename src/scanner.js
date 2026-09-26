@@ -1,11 +1,12 @@
 const crypto = require('node:crypto')
 const { Api } = require('grammy')
 const { config, requireBotToken } = require('./config')
-const { mongoose, Address, User, Counter, Delivery } = require('./models')
+const { mongoose, Address, User, Counter, Delivery, TraceTask } = require('./models')
 const { rawAddress } = require('./address')
 const { participants, formatAction, passesFilters } = require('./events')
 const { toNano } = require('./amount')
 const { TonCenter, sleep } = require('./toncenter')
+const { safeError, shutdownSignal, connectDatabase, workerLoop, health } = require('./runtime')
 
 const CURSOR_NAME = 'actions_scan_v1'
 
@@ -50,10 +51,11 @@ function channelEligible(action) {
   catch { return false }
 }
 
-async function routeAction(action, metadata, watched) {
+async function routeAction(action, metadata, watched, excluded = new Set()) {
   if (!action.action_id || typeof action.action_id !== 'string') throw new Error('Action without action_id')
   const matching = new Map()
   for (const participant of participants(action)) {
+    if (excluded.has(participant)) continue
     for (const record of watched.map.get(participant) || []) matching.set(String(record._id), record)
   }
   for (const record of matching.values()) {
@@ -80,24 +82,99 @@ async function scanBlock(client, seqno, watched) {
     offset += page.actions.length
     if (offset > 1000000) throw new Error(`Block ${seqno} exceeded action safety limit`)
   }
-  const significantTraces = new Set(entries.filter(({ action }) => !['call_contract', 'gasless_request', 'excess'].includes(action.type))
-    .map(({ action }) => action.trace_id).filter(Boolean))
-  for (const { action, metadata } of entries) {
-    if (shouldSuppress(action, significantTraces)) continue
-    await routeAction(action, metadata, watched)
-  }
+  await routeEntries(entries, watched)
   offset = 0
   const transactions = []
+  let lastTransactionId = null
   for (;;) {
     const page = await client.transactionsByMasterchainBlock({ seqno, limit: config.pageSize, offset, sort: 'asc' })
+    if (offset && page.transactions[0]?.hash === lastTransactionId) throw new Error(`Duplicate transaction page for block ${seqno}`)
     transactions.push(...page.transactions)
     if (page.transactions.length < config.pageSize) break
+    lastTransactionId = page.transactions[0]?.hash
     offset += page.transactions.length
     if (offset > 1000000) throw new Error(`Block ${seqno} exceeded transaction safety limit`)
   }
-  const fallback = rawFallbacks(transactions, entries.map(({ action }) => action))
-  for (const action of fallback) await routeAction(action, {}, watched)
-  return entries.length + fallback.length
+  // A transaction can belong to a trace ending in a later block. Persist its
+  // reconciliation before committing this block instead of emitting it twice.
+  for (const tx of transactions) {
+    const relevant = [tx.account, tx.in_msg?.source, tx.in_msg?.destination,
+      ...(tx.out_msgs || []).flatMap((msg) => [msg.source, msg.destination])]
+      .some((address) => watched.map.has(rawAddress(address)))
+    if (!relevant) continue
+    const id = tx.trace_id || tx.hash
+    if (!id) throw new Error('Transaction has neither trace ID nor hash')
+    try {
+      await TraceTask.updateOne({ _id: id }, { $setOnInsert: {
+        trace_id: tx.trace_id, tx_hash: tx.hash, status: 'pending', attempts: 0,
+        created_at: new Date(), next_attempt_at: new Date(0),
+      } }, { upsert: true })
+    } catch (error) { if (error.code !== 11000) throw error }
+  }
+  return entries.length
+}
+
+async function routeEntries(entries, watched) {
+  const covered = new Map()
+  for (const { action } of entries) {
+    if (!action.trace_id || ['call_contract', 'gasless_request', 'excess'].includes(action.type)) continue
+    if (!covered.has(action.trace_id)) covered.set(action.trace_id, new Map())
+    const accounts = covered.get(action.trace_id)
+    for (const account of participants(action)) {
+      if (!accounts.has(account)) accounts.set(account, new Set())
+      for (const hash of action.transactions || []) accounts.get(account).add(hash)
+    }
+  }
+  for (const { action, metadata } of entries) {
+    const excluded = new Set()
+    if (shouldSuppress(action, covered) && action.transactions?.length) {
+      for (const [account, hashes] of covered.get(action.trace_id)) {
+        if (action.transactions.every((hash) => hashes.has(hash))) excluded.add(account)
+      }
+    }
+    await routeAction(action, metadata, watched, excluded)
+  }
+}
+
+async function reconcileTraces(client) {
+  const tasks = await TraceTask.find({ status: 'pending', next_attempt_at: { $lte: new Date() } })
+    .sort({ next_attempt_at: 1 }).limit(20).lean()
+  if (!tasks.length) return { pendingChecked: 0 }
+  const watched = await loadWatched()
+  for (const task of tasks) {
+    // Schedule before network I/O; one failing trace cannot starve later tasks.
+    await TraceTask.updateOne({ _id: task._id }, { $inc: { attempts: 1 },
+      $set: { next_attempt_at: new Date(Date.now() + Math.min(10000 * 2 ** Math.min(task.attempts, 8), 3600000)) } })
+    const page = await client.get('/traces', {
+      ...(task.trace_id ? { trace_id: task.trace_id } : { tx_hash: task.tx_hash }), limit: 1,
+    })
+    if (!Array.isArray(page.traces)) throw new Error('Invalid traces response')
+    const trace = page.traces[0]
+    if (!trace || trace.is_incomplete || trace.trace_info?.trace_state !== 'complete'
+      || trace.trace_info.pending_messages > 0) continue
+    const entries = []
+    let lastPageId = null
+    for (let offset = 0; ; offset += config.pageSize) {
+      const actions = await client.actions({ trace_id: trace.trace_id, include_accounts: true,
+        sort: 'asc', offset, limit: config.pageSize })
+      if (offset && actions.actions[0]?.action_id === lastPageId) throw new Error('Duplicate trace action page')
+      entries.push(...actions.actions.map((action) => ({ action, metadata: actions.metadata || {} })))
+      if (actions.actions.length < config.pageSize) break
+      lastPageId = actions.actions[0]?.action_id
+      if (offset >= 1000000) throw new Error('Trace action safety limit exceeded')
+    }
+    // The indexer may expose complete traces before their classifier catches up.
+    if (!entries.length && trace.trace_info.classification_state !== 'classified') continue
+    await routeEntries(entries, watched)
+    const transactions = Object.values(trace.transactions || {})
+    const expected = trace.trace_info.transactions
+    if (!transactions.length || (expected && transactions.length < expected)) continue
+    for (const action of rawFallbacks(transactions, entries.map((entry) => entry.action))) {
+      await routeAction(action, page.metadata || {}, watched)
+    }
+    await TraceTask.updateOne({ _id: task._id }, { $set: { status: 'done' } })
+  }
+  return { pendingChecked: tasks.length }
 }
 
 function shouldSuppress(action, significantTraces) {
@@ -107,13 +184,12 @@ function shouldSuppress(action, significantTraces) {
 
 function rawFallbacks(transactions, actions) {
   const coveredTransactions = new Set(actions.flatMap((action) => action.transactions || []))
-  const coveredTraces = new Set(actions.map((action) => action.trace_id).filter(Boolean))
   const coveredMessages = new Set(transactions.filter((tx) => coveredTransactions.has(tx.hash))
     .flatMap((tx) => [tx.in_msg, ...(tx.out_msgs || [])]).map((message) => message?.hash).filter(Boolean))
   const seenMessages = new Set()
   const fallback = []
   for (const tx of transactions) {
-    if (coveredTransactions.has(tx.hash) || (tx.trace_id && coveredTraces.has(tx.trace_id))) continue
+    if (coveredTransactions.has(tx.hash)) continue
     let emitted = false
     const messages = [tx.in_msg, ...(tx.out_msgs || [])]
     for (const [index, message] of messages.entries()) {
@@ -146,6 +222,7 @@ function rawFallbacks(transactions, actions) {
 async function scanCycle(client, state = {}) {
   const { last } = await client.masterchainInfo()
   const tip = last.seqno - config.lagBlocks
+  state.tip = tip
   if (tip < 0) return state
   const cursor = await Counter.findOne({ name: CURSOR_NAME }).lean()
   let seqno = cursor?.data?.seqno
@@ -157,12 +234,19 @@ async function scanCycle(client, state = {}) {
     await Counter.updateOne({ name: CURSOR_NAME }, { $set: { data: { seqno } } }, { upsert: true })
     console.log(`Scanner cursor initialized at ${seqno}`)
   }
+  state.lastProcessed = seqno
   const watched = await loadWatched()
-  for (let block = seqno + 1; block <= Math.min(tip, seqno + 10); block += 1) {
-    const count = await scanBlock(client, block, watched)
-    await Counter.updateOne({ name: CURSOR_NAME }, { $max: { 'data.seqno': block } })
-    state.lastProcessed = block
-    if (count) console.log(`Indexed block ${block}: ${count} actions`)
+  const end = Math.min(tip, seqno + 40)
+  for (let start = seqno + 1; start <= end; start += config.blockConcurrency) {
+    const blocks = Array.from({ length: Math.min(config.blockConcurrency, end - start + 1) }, (_, i) => start + i)
+    const results = await Promise.allSettled(blocks.map((block) => scanBlock(client, block, watched)))
+    // Concurrent fetches/writes may complete out of order. Commit only the
+    // contiguous successful prefix; replay deduplicates later saved blocks.
+    for (const [index, result] of results.entries()) {
+      if (result.status === 'rejected') throw result.reason
+      await Counter.updateOne({ name: CURSOR_NAME }, { $max: { 'data.seqno': blocks[index] } })
+      state.lastProcessed = blocks[index]
+    }
   }
   const lastProcessed = state.lastProcessed || seqno
   if (config.replayBlocks > 0 && lastProcessed > 0 && tip - lastProcessed <= config.replayBlocks * 2) {
@@ -171,16 +255,18 @@ async function scanCycle(client, state = {}) {
       state.replayOffset = 0
     }
     const replay = Math.max(1, state.replayWindowEnd - state.replayOffset)
-    const count = await scanBlock(client, replay, watched)
+    await scanBlock(client, replay, watched)
     state.replayOffset += 1
-    if (count) console.log(`Replayed block ${replay}: ${count} actions`)
   }
   return state
 }
 
-async function sendPending(api) {
+async function sendPending(api, state = {}) {
   let sent = 0
-  while (sent < 100) {
+  if (state.cooldownUntil > Date.now()) return sent
+  state.chats ||= new Map()
+  for (const [chat, until] of state.chats) if (until <= Date.now()) state.chats.delete(chat)
+  for (let examined = 0; examined < 100; examined += 1) {
     const now = new Date()
     const delivery = await Delivery.findOneAndUpdate({
       status: { $in: ['pending', 'sending'] },
@@ -189,17 +275,24 @@ async function sendPending(api) {
     }, { $set: { status: 'sending', lease_until: new Date(Date.now() + 120000) }, $inc: { attempts: 1 } },
     { sort: { created_at: 1 }, new: true })
     if (!delivery) break
+    const nextChatAt = state.chats.get(String(delivery.chat_id)) || 0
+    if (nextChatAt > Date.now()) {
+      await Delivery.updateOne({ _id: delivery._id }, { $set: { status: 'pending', next_attempt_at: new Date(nextChatAt) },
+        $unset: { lease_until: 1 }, $inc: { attempts: -1 } })
+      continue
+    }
     if (delivery.address_id) {
       const [address, user] = await Promise.all([
         Address.findById(delivery.address_id),
         User.findOne({ user_id: Number(delivery.user_id) }),
       ])
-      if (!address || address.is_deleted || !address.notifications?.is_enabled || user?.is_blocked || user?.is_deactivated) {
+      if (!address || !user || address.is_deleted || !address.notifications?.is_enabled || user.is_blocked || user.is_deactivated) {
         await Delivery.updateOne({ _id: delivery._id }, { $set: { status: 'skipped' }, $unset: { lease_until: 1 } })
         continue
       }
     }
     try {
+      state.chats.set(String(delivery.chat_id), Date.now() + (Number(delivery.chat_id) < 0 ? 3100 : 1100))
       await api.sendMessage(delivery.chat_id, delivery.text, {
         parse_mode: 'HTML', link_preview_options: { is_disabled: true },
       })
@@ -207,7 +300,7 @@ async function sendPending(api) {
       sent += 1
       if (delivery.address_id) {
         try { await Address.updateOne({ _id: delivery.address_id }, { $inc: { 'counters.send_coins': 1 } }) }
-        catch (error) { console.error(`Could not update address counter ${delivery.address_id}: ${error.message}`) }
+        catch (error) { console.error(`Could not update address counter: ${safeError(error)}`) }
       }
       await sleep(40)
     } catch (error) {
@@ -216,16 +309,16 @@ async function sendPending(api) {
         if (delivery.user_id && (code === 403 || /chat not found|user is deactivated/i.test(error.description || ''))) {
           await User.updateOne({ user_id: Number(delivery.user_id) }, { $set: { is_blocked: true } })
         }
-        await Delivery.updateOne({ _id: delivery._id }, { $set: { status: 'skipped', last_error: String(error.description || error.message).slice(0, 300) }, $unset: { lease_until: 1 } })
+        await Delivery.updateOne({ _id: delivery._id }, { $set: { status: 'skipped', last_error: safeError(error).slice(0, 300) }, $unset: { lease_until: 1 } })
       } else {
         const retryAfter = error.parameters?.retry_after || error.error?.parameters?.retry_after
-        const wait = retryAfter ? retryAfter * 1000 : Math.min(60000 * 2 ** Math.min(delivery.attempts, 6), 3600000)
+        const wait = retryAfter ? retryAfter * 1000 + 100 : Math.min(60000 * 2 ** Math.min(delivery.attempts || 1, 6), 3600000)
         await Delivery.updateOne({ _id: delivery._id }, { $set: {
           status: 'pending', next_attempt_at: new Date(Date.now() + wait),
-          last_error: String(error.description || error.message).slice(0, 300),
+          last_error: safeError(error).slice(0, 300),
         }, $unset: { lease_until: 1 } })
-        console.error(`Delivery ${delivery._id} retry in ${Math.round(wait / 1000)}s: ${error.message}`)
-        if (code === 429) break
+        console.error(`Delivery retry in ${Math.round(wait / 1000)}s: ${safeError(error)}`)
+        if (code === 429) { state.cooldownUntil = Date.now() + wait; break }
       }
     }
   }
@@ -233,28 +326,31 @@ async function sendPending(api) {
 }
 
 async function main() {
-  requireBotToken()
-  await mongoose.connect(config.mongoUri, { serverSelectionTimeoutMS: 10000, autoIndex: false })
+  if (config.sendNotifications) requireBotToken()
+  const signal = shutdownSignal()
+  if (!await connectDatabase(signal, 'scanner')) return
   await Delivery.collection.createIndex({ status: 1, next_attempt_at: 1, created_at: 1 })
+  await TraceTask.collection.createIndex({ status: 1, next_attempt_at: 1 })
   const client = new TonCenter()
-  const api = new Api(config.botToken)
   const state = {}
-  let stopping = false
-  process.once('SIGINT', () => { stopping = true })
-  process.once('SIGTERM', () => { stopping = true })
-  console.log('Scanner connected to MongoDB')
-  while (!stopping) {
-    try {
+  console.log(`Scanner connected; Telegram delivery ${config.sendNotifications ? 'enabled' : 'disabled'}`)
+  const workers = [workerLoop('scanner', async () => {
       await scanCycle(client, state)
-      await sendPending(api)
-    } catch (error) {
-      console.error('Scanner cycle failed; cursor preserved:', error)
-    }
-    if (!stopping) await sleep(config.scanIntervalMs)
+      const lag = state.tip - state.lastProcessed
+      return { seqno: state.lastProcessed, tip: state.tip, lag, catchingUp: lag > 0 }
+    }, { signal, intervalMs: config.scanIntervalMs }),
+    workerLoop('traces', () => reconcileTraces(client), { signal, intervalMs: 5000 })]
+  if (config.sendNotifications) {
+    const api = new Api(config.botToken, { timeoutSeconds: 30 })
+    const deliveryState = {}
+    workers.push(workerLoop('delivery', async () => ({ sent: await sendPending(api, deliveryState) }), { signal, intervalMs: 250 }))
+  } else {
+    await health('delivery', { status: 'disabled' })
   }
+  await Promise.all(workers)
   await mongoose.disconnect()
 }
 
-if (require.main === module) main().catch((error) => { console.error(error); process.exitCode = 1 })
+if (require.main === module) main().catch((error) => { console.error(safeError(error)); process.exit(1) })
 
-module.exports = { deliveryId, routeAction, scanBlock, scanCycle, sendPending, loadWatched, channelEligible, shouldSuppress, rawFallbacks }
+module.exports = { deliveryId, routeAction, routeEntries, scanBlock, scanCycle, reconcileTraces, sendPending, loadWatched, channelEligible, shouldSuppress, rawFallbacks }

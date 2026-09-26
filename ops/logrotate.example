@@ -1,0 +1,23 @@
+# Replace /srv/ton-notify-bot with the deployment directory.
+# Install as a root-owned file in /etc/logrotate.d/ and run logrotate hourly.
+/srv/ton-notify-bot/.local/logs/*.log {
+    daily
+    maxsize 50M
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
+
+/var/log/mongodb/mongod.log {
+    daily
+    maxsize 100M
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

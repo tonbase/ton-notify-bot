@@ -4,6 +4,7 @@ const { mongoose, Address, User, Session } = require('./models')
 const { rawAddress, friendlyAddress, shortAddress } = require('./address')
 const { toNano, formatUnits } = require('./amount')
 const { escapeHtml } = require('./events')
+const { safeError, shutdownSignal, connectDatabase } = require('./runtime')
 
 const PAGE_SIZE = 5
 const html = { parse_mode: 'HTML', link_preview_options: { is_disabled: true } }
@@ -146,6 +147,7 @@ async function handleFlow(ctx, text) {
     return reply(ctx, notificationsText(record), notificationsKeyboard(record))
   }
   if (flow === 'filters') {
+    if (text.length > 500) return reply(ctx, 'Keep the comment filters within 500 characters.')
     const filters = parseWordFilters(text)
     record.notifications.exceptions = filters.exceptions
     record.notifications.inclusion = filters.inclusion
@@ -161,10 +163,20 @@ function createBot(token = config.botToken, botInfo) {
   if (!token) throw new Error('BOT_TOKEN is missing')
   const bot = new Bot(token, botInfo ? { botInfo } : undefined)
 
+  bot.on('inline_query', async (ctx) => {
+    const parsed = parseAddressInput(ctx.inlineQuery.query)
+    const results = parsed ? [{ type: 'article', id: 'address', title: 'Share TON address',
+      description: parsed.address, input_message_content: { message_text: parsed.address },
+      reply_markup: new InlineKeyboard().url('Track address', `https://t.me/${ctx.me.username}?start=${friendlyAddress(parsed.address)}`),
+    }] : []
+    return ctx.answerInlineQuery(results, { cache_time: 0, is_personal: true })
+  })
+
   bot.use(async (ctx, next) => {
     if (ctx.myChatMember?.chat?.type === 'private') {
       const blocked = ctx.myChatMember.new_chat_member?.status === 'kicked'
       await User.updateOne({ user_id: ctx.myChatMember.chat.id }, { $set: { is_blocked: blocked } })
+      return null
     }
     if (!ctx.from || ctx.chat?.type !== 'private') return null
     ctx.user = await User.findOneAndUpdate({ user_id: ctx.from.id }, {
@@ -172,6 +184,7 @@ function createBot(token = config.botToken, botInfo) {
         first_name: ctx.from.first_name || 'User', last_name: ctx.from.last_name || '',
         language_code: ctx.from.language_code || '', last_activity_at: new Date(),
         is_deactivated: false,
+        is_blocked: false,
       },
       $setOnInsert: { user_id: ctx.from.id },
     }, { upsert: true, new: true })
@@ -226,7 +239,7 @@ function createBot(token = config.botToken, botInfo) {
     }
     if (kind === 'notify_exceptions') {
       ctx.session = { flow: 'filters', addressId: id }
-      return reply(ctx, 'Send comma-separated words. Prefix with <code>-</code> to exclude, <code>+</code> to include. Example: <code>+cashback, -ads</code>.', new InlineKeyboard().text('Clear', `clear_exceptions_${id}`).row().text('« Back to notifications', `notify_${id}`), true)
+      return reply(ctx, 'Send comma-separated comments to match exactly. Prefix with <code>-</code> to exclude, <code>+</code> to include. Example: <code>+cashback, -ads</code>.', new InlineKeyboard().text('Clear', `clear_exceptions_${id}`).row().text('« Back to notifications', `notify_${id}`), true)
     }
     if (kind === 'reset_min_amount') {
       record.notifications.min_amount = '0'
@@ -254,20 +267,27 @@ function createBot(token = config.botToken, botInfo) {
     }
     return null
   })
-  bot.catch((error) => console.error('Bot update error:', error.error))
+  // Exit on unhandled update failures so polling never silently acknowledges
+  // an update whose database write failed. The supervisor restarts the bot.
+  bot.catch(({ error }) => {
+    // A deleted message or blocked chat cannot recover by replaying the update.
+    if ([400, 403].includes(error.error_code)) { console.error(`Telegram rejected update reply: ${safeError(error)}`); return }
+    throw error
+  })
   return bot
 }
 
 async function main() {
   requireBotToken()
-  await mongoose.connect(config.mongoUri, { serverSelectionTimeoutMS: 10000, autoIndex: false })
+  const signal = shutdownSignal()
+  if (!await connectDatabase(signal, 'bot')) return
   const bot = createBot()
   console.log('Bot connected to MongoDB; starting grammY polling')
-  process.once('SIGINT', () => bot.stop())
-  process.once('SIGTERM', () => bot.stop())
-  await bot.start()
+  signal.addEventListener('abort', () => { if (bot.isRunning()) void bot.stop().catch(() => {}) })
+  try { if (!signal.aborted) await bot.start() }
+  finally { await mongoose.disconnect() }
 }
 
-if (require.main === module) main().catch((error) => { console.error(error); process.exitCode = 1 })
+if (require.main === module) main().catch((error) => { console.error(safeError(error)); process.exit(1) })
 
 module.exports = { createBot, parseAddressInput, parseWordFilters }

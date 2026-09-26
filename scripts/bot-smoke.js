@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
 const { randomUUID } = require('node:crypto')
 const { Address: TonAddress } = require('@ton/core')
-const { mongoose, Address } = require('../src/models')
+const { mongoose, Address, User } = require('../src/models')
 const { createBot } = require('../src/bot')
 
 async function main() {
@@ -56,8 +56,16 @@ async function main() {
     assert.equal((await Address.findById(id)).is_deleted, true)
     await callback(`undo_${id}`)
     assert.equal((await Address.findById(id)).is_deleted, false)
+    await bot.handleUpdate({ update_id: ++updateId, inline_query: { id: 'share', from: user, query: wallet, offset: '' } })
+    const inline = calls.find(({ method }) => method === 'answerInlineQuery')
+    assert.equal(inline.payload.results[0].input_message_content.message_text, wallet)
+    await bot.handleUpdate({ update_id: ++updateId, my_chat_member: { chat, from: user, date: 0,
+      old_chat_member: { user: botInfo, status: 'member' }, new_chat_member: { user: botInfo, status: 'kicked' } } })
+    assert.equal((await User.findOne({ user_id: user.id })).is_blocked, true)
+    await message('/start')
+    assert.equal((await User.findOne({ user_id: user.id })).is_blocked, false)
     assert(calls.some(({ method }) => method === 'answerCallbackQuery'))
-    console.log(`PASS grammY add/list/open/settings/tag/delete/undo; ${calls.length} mocked Telegram API calls`)
+    console.log(`PASS grammY add/list/open/settings/tag/delete/undo/share/block recovery; ${calls.length} mocked Telegram API calls`)
   } finally {
     await mongoose.connection.dropDatabase()
     await mongoose.disconnect()

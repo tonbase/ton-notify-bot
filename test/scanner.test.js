@@ -2,9 +2,33 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Address, User, Counter, Delivery } = require('../src/models')
 const { scanCycle, sendPending, rawFallbacks } = require('../src/scanner')
+const { config } = require('../src/config')
 
 const A = `0:${'A'.repeat(64)}`
 const B = `0:${'B'.repeat(64)}`
+
+test('parallel blocks never commit beyond a failed block', async (t) => {
+  let cursor = 41
+  let failing = true
+  const commits = []
+  t.mock.method(Address, 'find', () => ({ lean: async () => [] }))
+  t.mock.method(User, 'find', () => ({ lean: async () => [] }))
+  t.mock.method(Counter, 'findOne', () => ({ lean: async () => ({ data: { seqno: cursor } }) }))
+  t.mock.method(Counter, 'updateOne', async (_filter, update) => { cursor = update.$max['data.seqno']; commits.push(cursor) })
+  const client = {
+    masterchainInfo: async () => ({ last: { seqno: 45 + config.lagBlocks } }),
+    actions: async ({ mc_seqno }) => {
+      if (failing && mc_seqno === 43) throw new Error('block temporarily unavailable')
+      return { actions: [] }
+    },
+    transactionsByMasterchainBlock: async () => ({ transactions: [] }),
+  }
+  await assert.rejects(() => scanCycle(client), /temporarily unavailable/)
+  assert.deepEqual(commits, [42])
+  failing = false
+  await scanCycle(client)
+  assert.deepEqual(commits, [42, 43, 44, 45])
+})
 
 test('scanner commits only blocks whose notifications were durably queued', async () => {
   const original = {
@@ -28,7 +52,7 @@ test('scanner commits only blocks whose notifications were durably queued', asyn
       queued.push(filter._id)
     }
     const client = {
-      masterchainInfo: async () => ({ last: { seqno: 51 } }),
+      masterchainInfo: async () => ({ last: { seqno: 43 + config.lagBlocks } }),
       actions: async ({ mc_seqno }) => ({
         actions: [{
           action_id: `action-${mc_seqno}`, trace_id: `trace-${mc_seqno}`,
