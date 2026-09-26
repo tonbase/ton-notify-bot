@@ -13,9 +13,9 @@ Telegram bot on [grammY](https://grammy.dev/) with a [TON Center v3](https://ton
 
 The bot preserves address management, tags, minimum TON amounts, exact comment inclusion/exclusion filters, deletion/undo, and address sharing. The minimum TON setting does not suppress jetton or NFT actions.
 
-Notifications put the amount or NFT first, with a small transaction link. The next line shows the participants with short address labels; the display tag is limited to 16 characters. Successful incoming/outgoing transfers use plus/minus signs; failed and self transfers do not imply a balance change. Long swap amounts break between the two assets. Short comments remain visible; long comments, payment references, NFT collections and seller payouts use native Rich Message details. Comments retain up to 2,048 characters, and reference text stays available under its quoted summary. Stored tags and exact-match filters keep the original values. Telegram may wrap long lines on narrow screens.
+Notifications use ordinary HTML text: amount or NFT on the first line, short participants and a `tx` link on the next, and an optional quoted comment. Display tags are limited to 16 characters and comment excerpts to 48. A trailing payment reference is omitted from the excerpt when a transaction link is available; the full comment and exact amounts remain accessible there. NFT names link to their item pages and collections. Successful incoming/outgoing transfers use plus/minus signs; failed and self transfers do not imply a balance change. Long swap quantities are rounded for display with an explicit approximation sign, preserving small nonzero values and integer precision. Stored tags and exact-match filters keep their original values. Telegram may wrap long lines on narrow screens.
 
-The delivery queue stores plain HTML alongside optional rich HTML. Older queue entries remain readable. An explicit Telegram 400 rejection of rich formatting falls back to the plain message; timeouts and ambiguous failures use the usual retry path.
+New notifications use plain HTML. The delivery queue can still read older entries with optional rich HTML. An explicit Telegram 400 rejection of those rich entries falls back to the plain message; timeouts and ambiguous failures use the usual retry path.
 
 ## Checks
 

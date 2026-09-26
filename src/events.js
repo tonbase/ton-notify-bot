@@ -1,5 +1,5 @@
 const { rawAddress, friendlyAddress, shortAddress } = require('./address')
-const { formatUnits } = require('./amount')
+const { formatUnits, formatDisplayUnits } = require('./amount')
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -25,14 +25,14 @@ function participants(action) {
   return [...new Set(values.map(rawAddress).filter(Boolean))]
 }
 
-function assetAmount(amount, asset, metadata, knownTon = false) {
-  if (knownTon || asset === null) return `${escapeHtml(formatUnits(amount || '0'))} TON`
+function assetAmount(amount, asset, metadata, knownTon = false, compact = false) {
+  if (knownTon || asset === null) return `${escapeHtml(compact ? formatDisplayUnits(amount || '0') : formatUnits(amount || '0'))} TON`
   const token = metadataFor(metadata, asset)
   const decimalsValue = token?.extra?.decimals ?? token?.decimals
   const decimals = decimalsValue === undefined ? null : Number(decimalsValue)
   const symbol = compactText(token?.symbol || token?.name || 'jetton', 24)
   const quantity = Number.isInteger(decimals) && decimals >= 0 && decimals <= 30
-    ? formatUnits(amount || '0', decimals, decimals) : `${amount || '0'} base units`
+    ? (compact ? formatDisplayUnits(amount || '0', decimals) : formatUnits(amount || '0', decimals, decimals)) : `${amount || '0'} base units`
   return `${escapeHtml(quantity)} ${linkAddress(asset, symbol)}`
 }
 
@@ -53,7 +53,7 @@ function amountText(action, metadata) {
   if (action.type === 'jetton_swap') {
     const incoming = details.dex_incoming_transfer
     const outgoing = details.dex_outgoing_transfer
-    if (incoming && outgoing) return `🪙 ${assetAmount(incoming.amount, incoming.asset, metadata)} → ${assetAmount(outgoing.amount, outgoing.asset, metadata)}`
+    if (incoming && outgoing) return `${assetAmount(incoming.amount, incoming.asset, metadata, false, true)} → ${assetAmount(outgoing.amount, outgoing.asset, metadata, false, true)}`
     return incoming ? `Out: ${assetAmount(incoming.amount, incoming.asset, metadata)}`
       : outgoing ? `In: ${assetAmount(outgoing.amount, outgoing.asset, metadata)}` : ''
   }
@@ -130,8 +130,7 @@ function formatNotification(action, watched, record, metadata = {}) {
     route = `${party(watched)} · ${linkAddress(d.pool, label)}`
   }
   const hash = action.transactions?.[0] || action.trace_id
-  // Text presentation keeps this small instead of Telegram's square arrow emoji.
-  const transaction = hash ? `  <a href="https://tonscan.org/transaction/${encodeURIComponent(hash)}">↗︎</a>` : ''
+  const transaction = hash ? ` · <a href="https://tonscan.org/transaction/${encodeURIComponent(hash)}">tx</a>` : ''
   const amount = amountText(action, metadata).replace(/^(?:💎|🪙|🖼)\s*/u, '')
   let headline
   if (action.success === false) {
@@ -141,32 +140,26 @@ function formatNotification(action, watched, record, metadata = {}) {
     if (action.type === 'nft_transfer') {
       const purchase = d.is_purchase && ['Send', 'Receive'].includes(direction)
         ? `${direction === 'Send' ? 'Sold' : 'Bought'} · ` : ''
-      const arrow = direction === 'Send' ? '↑' : direction === 'Receive' ? '↓' : '↔'
-      headline = `${arrow} <b>${purchase}${amount}</b>`
+      headline = `${purchase ? '' : sign ? `${sign} ` : ''}<b>${purchase}${amount}</b>`
     } else headline = `<b>${sign}${amount}</b>`
   } else if (action.type === 'jetton_swap') {
-    const exchange = amount.replace(/<[^>]*>/g, '').length > 30 ? amount.replace(' → ', '\n→ ') : amount
-    headline = `⇄ <b>${exchange || 'Swap'}</b>`
+    const exchange = amount.replace(/<[^>]*>/g, '').length > 38 ? amount.replace(' → ', '\n→ ') : amount
+    headline = `<b>${exchange || 'Swap'}</b>`
   } else {
     headline = `<b>${escapeHtml(actionTitle(action))}</b>${amount ? ` · ${amount}` : ''}`
   }
-  const lines = [`${headline}${transaction}`, route]
+  const lines = [headline, `${route}${transaction}`]
   const details = []
-  if (d.nft_collection) details.push(linkAddress(d.nft_collection, 'Collection'))
+  // The NFT name opens its item page, which also exposes the collection.
+  if (d.nft_collection && !d.nft_item) details.push(linkAddress(d.nft_collection, 'Collection'))
   if (d.is_purchase && d.payout_amount !== undefined) details.push(`Seller payout: ${assetAmount(d.payout_amount, null, metadata)}`)
   if (d.pool && !d.dex && !d.provider && ![rawAddress(source), rawAddress(destination)].includes(rawAddress(d.pool))) details.push(linkAddress(d.pool, 'Pool'))
-  const comment = d.comment && !d.encrypted && !d.is_encrypted_comment ? compactText(d.comment, 2048) : ''
-  // A payment reference stays available verbatim; its human part is only a quote,
-  // never used to classify the transaction as a verified purchase.
-  const excerpt = comment.replace(/\s+Ref#[A-Za-z0-9_-]+$/u, '')
-  const foldComment = comment && (comment.length > 60 || excerpt !== comment)
-  if (comment && !foldComment) lines.push(`<i>${escapeHtml(comment)}</i>`)
-  if (foldComment) details.push(escapeHtml(comment))
-  const summary = foldComment ? `“${escapeHtml(compactText(excerpt, 42))}”` : 'Details'
-  return {
-    text: [...lines, ...details].join('\n'),
-    richHtml: details.length ? `<p>${lines.join('<br>').replaceAll('\n', '<br>')}</p><details><summary>${summary}</summary><p>${details.join('<br>')}</p></details>` : undefined,
-  }
+  const comment = d.comment && !d.encrypted && !d.is_encrypted_comment ? String(d.comment) : ''
+  // Only presentation is shortened. Filters keep the original comment, and the
+  // transaction link exposes the complete reference and precise swap amounts.
+  const excerpt = hash ? comment.replace(/\s+Ref#[A-Za-z0-9_-]+$/u, '') : comment
+  if (excerpt.trim()) lines.push(`<i>“${escapeHtml(compactText(excerpt, 48))}”</i>`)
+  return { text: [...lines, ...details].join('\n') }
 }
 
 function formatAction(action, watched, record, metadata = {}) {

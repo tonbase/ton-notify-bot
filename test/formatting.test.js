@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { formatAction, formatNotification, participants } = require('../src/events')
+const { formatDisplayUnits } = require('../src/amount')
 const A = `0:${'A'.repeat(64)}`
 const T = `0:${'B'.repeat(64)}`
 const metadata = { [T]: { token_info: [{ symbol: 'USDT', extra: { decimals: '6' } }] } }
@@ -27,25 +28,36 @@ test('NFT purchase direction uses real seller and distinguishes payout from pric
   const text = formatAction({ type: 'nft_transfer', details: {
     old_owner: T, real_old_owner: A, is_purchase: true, payout_amount: '5000000000',
   } }, A)
-  assert.match(text, /^↑ <b>Sold · /)
+  assert.match(text, /^<b>Sold · /)
   assert.match(text, /Seller payout: 5 TON/)
 })
 
-test('collapsed comments preserve references and escape HTML without claiming a purchase', () => {
+test('plain notifications show a short quote without mutating references or implying a purchase', () => {
   const comment = '90 Telegram Stars Ref#example123'
   const action = { type: 'ton_transfer', success: true, transactions: ['test/hash'], details: {
     source: A, destination: T, value: '919800000', comment,
   } }
   const output = formatNotification(action, A, { tag: 'Main wallet' })
   assert.match(plain(output.text).split('\n')[0], /^−0.9198 TON/)
-  assert.match(output.richHtml, /<summary>“90 Telegram Stars”<\/summary>/)
-  assert(output.richHtml.includes(comment))
-  assert(!output.richHtml.includes('Bought'))
-  assert(output.richHtml.includes('test%2Fhash'))
+  assert.match(output.text, /<i>“90 Telegram Stars”<\/i>/)
+  assert.equal(action.details.comment, comment)
+  assert.equal(output.richHtml, undefined)
+  assert(!output.text.includes('Bought'))
+  assert(output.text.includes('test%2Fhash'))
+  assert.equal(output.text.split('\n').length, 3)
   action.details.comment = '<b>Untrusted</b> '.repeat(10)
-  assert(formatNotification(action, A).richHtml.includes('&lt;b&gt;Untrusted&lt;/b&gt;'))
+  assert(formatNotification(action, A).text.includes('&lt;b&gt;Untrusted&lt;/b&gt;'))
   action.details.encrypted = true
   assert(!formatNotification(action, A).text.includes('Untrusted'))
+})
+
+test('short swap amounts mark rounding, keep large integer precision and never erase tiny values', () => {
+  assert.equal(formatDisplayUnits('520729196'), '≈0.520729')
+  assert.equal(formatDisplayUnits('999999999'), '≈1')
+  assert.equal(formatDisplayUnits('1'), '0.000000001')
+  assert.equal(formatDisplayUnits('12345', 18), '≈0.00000000000001235')
+  assert.equal(formatDisplayUnits('123456789123456789'), '≈123,456,789.123457')
+  assert.equal(formatDisplayUnits('25000000', 6), '25')
 })
 
 test('failed and self transfers never imply a successful balance change', () => {
