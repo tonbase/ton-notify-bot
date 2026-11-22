@@ -9,13 +9,14 @@
     "inspect": "node src/inspect.js",
     "smoke": "node scripts/live-smoke.js",
     "smoke:bot": "node scripts/bot-smoke.js",
+    "smoke:delivery": "node scripts/delivery-smoke.js",
     "smoke:recovery": "node scripts/recovery-smoke.js",
     "health": "node scripts/health.js",
     "design": "node scripts/design-lab.js",
     "live": "node scripts/live-lab.js --start",
     "live:all": "node scripts/live-supervisor.js --start",
     "test": "node --test test/*.test.js",
-    "check": "node --check src/bot.js && node --check src/scanner.js && node --test test/*.test.js"
+    "check": "node scripts/check.js"
   },
   "repository": {
     "type": "git",

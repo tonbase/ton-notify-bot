@@ -1,7 +1,7 @@
 const test=require('node:test')
 const assert=require('node:assert/strict')
 const {Delivery,Address,User}=require('../src/models')
-const {sendPending}=require('../src/scanner')
+const { sendPending } = require('../src/delivery')
 
 test('grouped delivery claims only one chat and commits every event after one native send',async(t)=>{
   const events=[1,2,3].map(n=>({_id:`event-${n}`,chat_id:123,text:`event ${n}`,rich_html:`<p>event ${n}</p>`}))

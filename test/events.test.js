@@ -3,9 +3,12 @@ const assert = require('node:assert/strict')
 const { Address } = require('@ton/core')
 const { rawAddress } = require('../src/address')
 const { formatUnits, toNano } = require('../src/amount')
-const { formatAction, formatNotification, participants, passesFilters } = require('../src/events')
+const { formatAction, formatNotification, participants } = require('../src/events')
+const { passesFilters } = require('../src/notification-filter')
 const { parseAddressInput, parseWordFilters } = require('../src/bot')
-const { scanBlock, deliveryId, shouldSuppress } = require('../src/scanner')
+const { scanBlock } = require('../src/block-scanner')
+const { deliveryId } = require('../src/delivery-queue')
+const { shouldSuppress } = require('../src/notification-router')
 
 const A = `0:${'A'.repeat(64)}`
 const B = `0:${'B'.repeat(64)}`
@@ -59,7 +62,7 @@ test('block scanner requests every page and processes more than 500 actions', as
     calls += 1
     const size = offset === 0 ? 500 : 1
     return { actions: Array.from({ length: size }, (_, i) => ({ action_id: `${offset + i}`, type: 'unknown', details: {}, accounts: [] })) }
-  }, transactionsByMasterchainBlock: async () => ({ transactions: [] }) }
+  } }
   const count = await scanBlock(client, 42, { map: new Map(), active: new Set() })
   assert.equal(count, 501)
   assert.equal(calls, 2)

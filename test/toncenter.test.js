@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { TonCenter, RequestLimiter } = require('../src/toncenter')
+const { TonCenter } = require('../src/toncenter')
+const { RequestLimiter } = require('../src/request-limiter')
 
 test('HTTP and legacy body rate limits retry without converting error text to amounts', async () => {
   const replies = [new Response('Ratelimit exceed'),

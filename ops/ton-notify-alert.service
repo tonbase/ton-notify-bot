@@ -1,0 +1,18 @@
+[Unit]
+Description=Send notification service health changes to its owner
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=core
+Group=core
+EnvironmentFile=/etc/ton-notify-alerts.env
+Environment=HEALTH_DIRECTORY=/run/ton-notify-health
+ExecStart=/opt/node-v22.23.3-linux-x64/bin/node /home/core/ton-notify-current/ops/health-alert.js
+RuntimeDirectory=ton-notify-alerts
+RuntimeDirectoryPreserve=yes
+RuntimeDirectoryMode=0700
+TimeoutStartSec=70
+UMask=0077
+NoNewPrivileges=true

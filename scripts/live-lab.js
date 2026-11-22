@@ -53,12 +53,16 @@ async function main() {
   process.env.HEALTH_DIRECTORY = path.join(directory, 'health')
   const { config } = require('../src/config')
   config.startSeqno = null
-  const { mongoose, Address, User, Delivery, TraceTask } = require('../src/models')
+  const { mongoose, Address, User, Delivery } = require('../src/models')
   const { TonCenter } = require('../src/toncenter')
   const { tonUsdPrice, REFRESH_MS } = require('../src/prices')
   const { participants } = require('../src/events')
   const { rawAddress } = require('../src/address')
-  const { loadWatched, routeAction, scanCycle, reconcileTraces, sendPending } = require('../src/scanner')
+  const { loadWatched, routeAction } = require('../src/notification-router')
+  const { scanCycle } = require('../src/block-scanner')
+  const { sendPending } = require('../src/delivery')
+  const { loadDeliveryState } = require('../src/delivery-state')
+  const { createTelegramSender } = require('../src/telegram-sender')
   const { shutdownSignal, connectDatabase, workerLoop, safeError } = require('../src/runtime')
   const controller = new AbortController()
   shutdownSignal().addEventListener('abort', () => controller.abort(), { once: true })
@@ -68,8 +72,9 @@ async function main() {
   try {
     const api = new Api(config.botToken, { timeoutSeconds: 30 })
     if ((await api.getMe()).id !== owner.botId) throw new Error('Bot does not match registered owner')
+    const deliveryState = await loadDeliveryState()
+    const pacedApi = createTelegramSender(api, deliveryState)
     await Delivery.collection.createIndex({ status: 1, next_attempt_at: 1, created_at: 1 })
-    await TraceTask.collection.createIndex({ status: 1, next_attempt_at: 1 })
     const client = new TonCenter()
     await tonUsdPrice.refresh().catch(() => {})
     const sessionFile = `session-${control.session}.json`
@@ -97,16 +102,18 @@ async function main() {
     let sent = Math.max(await Delivery.countDocuments({ status: 'sent' }), Object.keys(session.messages).length)
     const lastSentAt = Math.max(0, ...Object.values(session.messages).map(message => Date.parse(message.at) || 0))
     let nextSendAt = Math.max(Date.now(), lastSentAt + control.intervalMs)
-    const scannerState = {}, deliveryState = {}
+    const scannerState = {}
     const status = (value) => writeLive('status.json', { status: value, session: control.session, sent,
       maxMessages: control.maxMessages, addresses: session.addresses.length, pid: process.pid,
       seqno: scannerState.lastProcessed, tip: scannerState.tip, updatedAt: new Date().toISOString() })
-    if (!session.introduced && active()) {
-      await api.sendMessage(owner.chatId, 'Включил реальные уведомления из блокчейна.\n\nСначала придут четыре недавние операции: GRAM, токен, NFT и обмен. Затем — новые события выбранных публичных адресов. Эти кошельки не твои; суммы и ссылки настоящие.\n\nДо 30 сообщений, не чаще одного в 20 секунд. Сеанс завершится через час или по лимиту. Замечания можно писать ответом на сообщение.\n/live_status — статус · /live_stop — остановить.',
+    const introduce = async () => {
+      if (session.introduced || !active()) return
+      await pacedApi.sendMessage(owner.chatId, 'Включил реальные уведомления из блокчейна.\n\nСначала придут четыре недавние операции: GRAM, токен, NFT и обмен. Затем — новые события выбранных публичных адресов. Эти кошельки не твои; суммы и ссылки настоящие.\n\nДо 30 сообщений, не чаще одного в 20 секунд. Сеанс завершится через час или по лимиту. Замечания можно писать ответом на сообщение.\n/live_status — статус · /live_stop — остановить.',
         { disable_notification: true, reply_markup: { inline_keyboard: [[{ text: '⏹ Остановить поток', callback_data: 'live:stop' }]] } })
-      session.introduced = true; writeLive(sessionFile, session)
+      session.introduced = true; nextSendAt = Date.now() + control.intervalMs
+      writeLive(sessionFile, session)
     }
-    const sender = privateSender(api, owner, () => active() && sent < control.maxMessages, async (message) => {
+    const sender = privateSender(pacedApi, owner, () => active() && sent < control.maxMessages, async (message) => {
       sent += 1; nextSendAt = Date.now() + control.intervalMs
       session.messages[message.message_id] = { at: new Date().toISOString() }
       // A bookkeeping failure after Telegram accepted a message must not retry it.
@@ -126,9 +133,10 @@ async function main() {
         const lag = scannerState.tip - scannerState.lastProcessed
         return { seqno: scannerState.lastProcessed, tip: scannerState.tip, lag, catchingUp: lag > 0 }
       }, { signal, intervalMs: config.scanIntervalMs }),
-      workerLoop('traces', () => guard() ? reconcileTraces(client) : {}, { signal, intervalMs: 5000 }),
       workerLoop('delivery', async () => {
         if (!guard() || Date.now() < nextSendAt) return { sent }
+        await introduce()
+        if (Date.now() < nextSendAt) return { sent }
         await sendPending(sender, deliveryState, { maxMessages: 1, chatId: owner.chatId })
         return { sent }
       }, { signal, intervalMs: 1000 }),

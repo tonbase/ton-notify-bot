@@ -3,7 +3,7 @@ const assert = require('node:assert/strict')
 const { TonUsdPrice, tonUsdPrice, REFRESH_MS } = require('../src/prices')
 const { formatTonUsd } = require('../src/amount')
 const { formatNotification } = require('../src/events')
-const { routeAction } = require('../src/scanner')
+const { routeAction } = require('../src/notification-router')
 const { Delivery } = require('../src/models')
 const { config } = require('../src/config')
 

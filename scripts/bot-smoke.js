@@ -11,7 +11,14 @@ async function main() {
     const user = { id: 900001, is_bot: false, first_name: 'Smoke' }
     const chat = { id: user.id, type: 'private' }
     const botInfo = { id: 123456, is_bot: true, first_name: 'Test bot', username: 'test_notify_bot', can_join_groups: false, can_read_all_group_messages: false, supports_inline_queries: true }
-    const bot = createBot('123456:fake', botInfo)
+    const domainLookups = []
+    const bot = createBot('123456:fake', botInfo, { resolveDomain: async (domain) => {
+      domainLookups.push(domain)
+      if (domain === 'fresh.grm') return { address: `0:${'B'.repeat(64)}`, kind: 'owner' }
+      if (domain === '1kilo.grm') return { address: wallet, kind: 'owner' }
+      if (domain === 'tele.grm') return { address: '0:E9794960FFBCBDB7976AAE93779FDE1A6DED18975C4CC134F40E4D43DA59EEBF', kind: 'wallet' }
+      return domain === 'tolya.ton' ? { address: wallet, kind: 'wallet' } : null
+    } })
     const calls = []
     bot.api.config.use(async (_prev, method, payload) => {
       calls.push({ method, payload })
@@ -38,6 +45,19 @@ async function main() {
     let record = await Address.findOne({ user_id: user.id })
     assert.equal(record.tag, 'Test wallet')
     const id = String(record._id)
+    await Address.updateOne({ _id: id }, { $set: { tag: '' } })
+    for (const domain of ['tolya.ton:tolya.ton', '1kilo.grm:1kilo.grm']) {
+      await message(domain)
+      assert.equal(await Address.countDocuments({ user_id: user.id }), 1)
+      const expectedTag = domain.split(':')[1]
+      assert.equal((await Address.findById(id)).tag, expectedTag)
+      assert(calls.at(-1).payload.text.includes(`Here it is: ${expectedTag}`))
+      await message(domain.split(':')[0])
+      assert.equal((await Address.findById(id)).tag, expectedTag, 'a DNS name without :tag preserves the existing label')
+      await callback(`edit_${id}`)
+      await message('Test wallet')
+    }
+    assert.deepEqual(domainLookups, ['tolya.ton', 'tolya.ton', '1kilo.grm', '1kilo.grm'])
     // All representations open the same existing subscription and preserve
     // settings, rather than silently inserting another address row.
     for (const bounceable of [true, false]) for (const testOnly of [true, false]) for (const urlSafe of [true, false]) {
@@ -57,6 +77,12 @@ async function main() {
     assert.equal(record.notifications.is_enabled, false)
     assert.match(JSON.stringify(calls.at(-1).payload.reply_markup), /Send notifications: No/)
     await callback(`notify_${id}_on`)
+    await callback(`notify_dust_${id}_off`)
+    assert.equal((await Address.findById(id)).notifications.filter_dust, false)
+    assert.match(JSON.stringify(calls.at(-1).payload.reply_markup), /Hide small incoming: OFF/)
+    await callback(`notify_dust_${id}_on`)
+    assert.equal((await Address.findById(id)).notifications.filter_dust, true)
+    assert.match(calls.at(-1).payload.text, /successful incoming GRAM transfers/)
     await callback(`notify_min_amout_${id}`)
     await message('0.1')
     record = await Address.findById(id)
@@ -95,10 +121,18 @@ async function main() {
     await callback(`edit_${id}`)
     await message('New tag')
     assert.equal((await Address.findById(id)).tag, 'New tag')
+    // Older subscriptions persisted notifications:false. Mongoose document
+    // saves must not try to add nested settings to that scalar during edits.
+    await Address.collection.updateOne({ _id: record._id }, { $set: { notifications: false } })
     await callback(`delete_${id}`)
     assert.equal((await Address.findById(id)).is_deleted, true)
+    assert.match(calls.at(-1).payload.text, /was deleted/)
+    assert.equal((await Address.collection.findOne({ _id: record._id })).notifications, false)
     await callback(`undo_${id}`)
     assert.equal((await Address.findById(id)).is_deleted, false)
+    await callback(`edit_${id}`)
+    await message('Legacy boolean tag')
+    assert.equal((await Address.findById(id)).tag, 'Legacy boolean tag')
     await callback(`delete_${id}`)
     await message(wallet)
     assert.equal((await Address.findById(id)).tag, '', 're-adding without a tag clears the old tag')
@@ -110,6 +144,8 @@ async function main() {
     await legacyScene('editTag', String(other._id))
     await message('Must not change')
     await callback(`delete_${other._id}`)
+    await callback(`notify_dust_${other._id}_off`)
+    assert.equal((await Address.findById(other._id)).notifications.filter_dust, true)
     assert.equal((await Address.findById(other._id)).tag, 'Other user')
     assert.equal((await Address.findById(other._id)).is_deleted, false)
     for (let index = 1; index <= 5; index++) await Address.create({ user_id: user.id, address: `0:${String(index).repeat(64)}` })
@@ -134,6 +170,15 @@ async function main() {
     await bot.handleUpdate({ update_id: ++updateId, inline_query: { id: 'share', from: user, query: wallet, offset: '' } })
     const inline = calls.find(({ method }) => method === 'answerInlineQuery')
     assert.equal(inline.payload.results[0].input_message_content.message_text, wallet)
+    await message('fresh.grm:DNS wallet')
+    const dnsRecord = await Address.findOne({ user_id: user.id, tag: 'DNS wallet' })
+    assert.equal(dnsRecord.address, TonAddress.parseRaw(`0:${'B'.repeat(64)}`).toString({ bounceable: false, urlSafe: true }))
+    assert.match(calls.at(-1).payload.text, /fresh\.grm →/)
+    assert.match(calls.at(-1).payload.text, /track the current domain owner/)
+    await message('tele.grm:tele.grm')
+    const teleRecord = await Address.findOne({ user_id: user.id, tag: 'tele.grm' })
+    assert.equal(teleRecord.address, 'UQDpeUlg_7y9t5dqrpN3n94abe0Yl1xMwTT0Dk1D2lnuv5eu')
+    assert.doesNotMatch(calls.at(-1).payload.text, /track the current domain owner/)
     await bot.handleUpdate({ update_id: ++updateId, my_chat_member: { chat, from: user, date: 0,
       old_chat_member: { user: botInfo, status: 'member' }, new_chat_member: { user: botInfo, status: 'kicked' } } })
     assert.equal((await User.findOne({ user_id: user.id })).is_blocked, true)

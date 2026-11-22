@@ -1,6 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict')
 const {Delivery}=require('../src/models')
-const {routeAction,deliveryId}=require('../src/scanner')
+const { routeAction } = require('../src/notification-router')
+const { deliveryId } = require('../src/delivery-queue')
 const A=`0:${'A'.repeat(64)}`,B=`0:${'B'.repeat(64)}`
 const records=[1,2,3].map(n=>({_id:String(n),user_id:n,address:A,notifications:{is_enabled:true,min_amount:'0'}}))
 const watched={map:new Map([[A,records]]),active:new Set([1,2,3])}

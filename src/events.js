@@ -1,8 +1,6 @@
 const { rawAddress, friendlyAddress, shortAddress } = require('./address')
-const { formatDisplayUnits, formatTonUsd, scaledInteger } = require('./amount')
-
-// Official USDt master: https://tether.to/en/supported-protocols/
-const USDT_MASTER = rawAddress('EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs')
+const { formatDisplayUnits, formatTonUsd } = require('./amount')
+const { USDT_MASTER, USDT_DECIMALS } = require('./assets')
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -58,8 +56,9 @@ function assetAmount(amount, asset, metadata, tonUsdRate) {
     return `${assetIcon(null)}${escapeHtml(formatDisplayUnits(amount || '0'))} GRAM${usd ? ` (≈ ${escapeHtml(usd)})` : ''}`
   }
   const token = metadataFor(metadata, asset)
-  const decimals = jettonDecimals(token)
-  const symbol = compactText(token?.symbol || token?.name || 'jetton', 24)
+  const isUsdt = rawAddress(asset) === USDT_MASTER
+  const decimals = isUsdt ? USDT_DECIMALS : jettonDecimals(token)
+  const symbol = isUsdt ? 'USDT' : compactText(token?.symbol || token?.name || 'jetton', 24)
   if (decimals === null) return `${linkAddress(asset, symbol)} (amount unavailable)`
   const quantity = formatDisplayUnits(amount || '0', decimals)
   return `${assetIcon(asset)}${escapeHtml(quantity)} ${linkAddress(asset, symbol)}`
@@ -274,18 +273,4 @@ function formatAction(action, watched, record, metadata = {}, tonUsdRate = null)
   return formatNotification(action, watched, record, metadata, undefined, tonUsdRate).text
 }
 
-function passesFilters(record, action) {
-  const settings = record.notifications || {}
-  if (!settings.is_enabled) return false
-  const comment = String(action.details?.comment || '')
-  if ((settings.exceptions || []).includes(comment)) return false
-  if ((settings.inclusion || []).length && !(settings.inclusion || []).includes(comment)) return false
-  if (action.type === 'ton_transfer') {
-    const value = scaledInteger(action.details?.value ?? '0')
-    const minimum = scaledInteger(settings.min_amount ?? '0')
-    return value !== null && minimum !== null && BigInt(value) >= BigInt(minimum)
-  }
-  return true
-}
-
-module.exports = { escapeHtml, participants, metadataFor, formatAction, formatNotification, passesFilters }
+module.exports = { escapeHtml, participants, metadataFor, jettonDecimals, formatAction, formatNotification }

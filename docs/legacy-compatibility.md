@@ -29,7 +29,7 @@ Audited against commit `2580764184bb815872351078a7b84aa47296e18a`.
 - Show exact token amounts; trim trailing zeroes only. The old truncation of transfers at 10 native coins is not retained. Thousands use the approved comma grouping.
 - Minimum GRAM amounts apply to native transfers. Jetton/NFT/staking events are not silently compared with a GRAM threshold or converted at an assumed exchange rate.
 - Validate addresses locally, so adding an address does not depend on a successful node RPC.
-- Use durable event delivery IDs, paginated scanning, reconciliation and retry queues instead of the old in-memory transaction hash cache.
+- Use durable event delivery IDs, paginated scanning, bounded block replay and delivery retries instead of the old in-memory transaction hash cache.
 
 ## Limits
 

@@ -1,4 +1,6 @@
 const path = require('node:path')
+const { toNano, scaledInteger } = require('./amount')
+const { USDT_DECIMALS } = require('./assets')
 require('dotenv').config({ path: path.join(__dirname, '..', '.env'), quiet: true })
 
 function integer(name, fallback, min = 0) {
@@ -17,6 +19,8 @@ const config = {
   indexKey: process.env.TON_INDEX_API_KEY || '',
   channelId: process.env.NOTIFICATIONS_CHANNEL_ID || '',
   minChannelTon: process.env.MIN_TRANSACTION_AMOUNT || '50000',
+  minChannelUsdt: process.env.MIN_CHANNEL_USDT || '100000',
+  minIncomingGramNano: toNano(process.env.MIN_INCOMING_GRAM || '0.01'),
   scanIntervalMs: integer('SCAN_INTERVAL_MS', 5000, 1000),
   lagBlocks: integer('SCAN_LAG_BLOCKS', 16),
   replayBlocks: integer('SCAN_REPLAY_BLOCKS', 120),
@@ -26,15 +30,19 @@ const config = {
   requestsPerSecond: integer('TON_REQUESTS_PER_SECOND', 80, 1),
   httpConcurrency: integer('TON_HTTP_CONCURRENCY', 8, 1),
   blockConcurrency: integer('SCAN_BLOCK_CONCURRENCY', 4, 1),
-  traceConcurrency: integer('TRACE_CONCURRENCY', 4, 1),
   sendNotifications: process.env.SEND_NOTIFICATIONS === 'true',
+  liveRecovery: process.env.ENABLE_LIVE_RECOVERY === 'true',
   notificationBatchSize: integer('NOTIFICATION_BATCH_SIZE', 1, 1),
+  hotDigestAddresses: (process.env.HOT_DIGEST_ADDRESSES || '').split(',').map((value) => value.trim()).filter(Boolean),
+  hotDigestCutoverUtime: integer('HOT_DIGEST_CUTOVER_UTIME', 0),
+  digestThresholdPerWindow: integer('DIGEST_THRESHOLD_PER_15M', 0),
 }
 
 if (config.pageSize > 1000) throw new Error('SCAN_PAGE_SIZE must be <= 1000')
+if (scaledInteger(config.minChannelUsdt, USDT_DECIMALS) === null) throw new Error('MIN_CHANNEL_USDT must be a non-negative USDT amount with at most 6 decimals')
+if (config.minIncomingGramNano === null) throw new Error('MIN_INCOMING_GRAM must be a non-negative GRAM amount with at most 9 decimals')
 if (config.blockConcurrency > 16) throw new Error('SCAN_BLOCK_CONCURRENCY must be <= 16')
 if (config.notificationBatchSize > 10) throw new Error('NOTIFICATION_BATCH_SIZE must be <= 10')
-if (config.traceConcurrency > 16) throw new Error('TRACE_CONCURRENCY must be <= 16')
 
 function requireBotToken() {
   if (!config.botToken) throw new Error('BOT_TOKEN is missing; set it in the ignored .env file')

@@ -1,7 +1,8 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Address, User, Counter, Delivery } = require('../src/models')
-const { scanCycle, sendPending, rawFallbacks } = require('../src/scanner')
+const { scanCycle } = require('../src/block-scanner')
+const { sendPending } = require('../src/delivery')
 const { config } = require('../src/config')
 
 const A = `0:${'A'.repeat(64)}`
@@ -33,7 +34,6 @@ test('parallel blocks never commit beyond a failed block', async (t) => {
       if (failing && mc_seqno === 43) throw new Error('block temporarily unavailable')
       return { actions: [] }
     },
-    transactionsByMasterchainBlock: async () => ({ transactions: [] }),
   }
   await assert.rejects(() => scanCycle(client), /temporarily unavailable/)
   assert.deepEqual(commits, [42])
@@ -73,7 +73,6 @@ test('scanner commits only blocks whose notifications were durably queued', asyn
           transactions: [`hash-${mc_seqno}`],
         }], metadata: {},
       }),
-      transactionsByMasterchainBlock: async () => ({ transactions: [] }),
     }
     await assert.rejects(() => scanCycle(client, {}), /MongoDB write failed/)
     assert.deepEqual(commits, [])
@@ -88,19 +87,6 @@ test('scanner commits only blocks whose notifications were durably queued', asyn
     Counter.updateOne = original.counterUpdateOne
     Delivery.updateOne = original.deliveryUpdateOne
   }
-})
-
-test('raw fallback preserves multiple uncovered messages without duplicating classified transfers', () => {
-  const first = { hash: 'msg-1', source: A, destination: B, value: '0' }
-  const second = { hash: 'msg-2', source: A, destination: B, value: '100' }
-  const transactions = [
-    { hash: 'tx-1', account: A, out_msgs: [first, second] },
-    { hash: 'tx-2', account: B, in_msg: first, out_msgs: [] },
-    { hash: 'tx-3', account: B, in_msg: second, out_msgs: [] },
-  ]
-  const fallback = rawFallbacks(transactions, [])
-  assert.deepEqual(fallback.map((item) => item.action_id), ['raw-message:msg-1', 'raw-message:msg-2'])
-  assert.deepEqual(rawFallbacks(transactions, [{ transactions: ['tx-1'] }]), [])
 })
 
 test('a failed counter update cannot reschedule a delivered Telegram message', async () => {

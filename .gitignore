@@ -108,5 +108,9 @@ dist
 
 .idea
 
+# Python operations/tests
+__pycache__/
+*.pyc
+
 # Lock file
 pnpm-lock.yaml

@@ -26,13 +26,26 @@ async function pause(ms, signal) {
   catch (error) { if (error.name !== 'AbortError') throw error }
 }
 
-// One bounded status file per worker; no per-block success log growth.
+const healthWriteErrors = new Map()
+
+// Diagnostic storage must not break database recovery or the worker's retry.
+// A missing/stale status file remains unhealthy to the external checker.
 async function health(name, state) {
   const directory = process.env.HEALTH_DIRECTORY || path.join(__dirname, '..', '.local', 'health')
-  await fs.mkdir(directory, { recursive: true })
-  const file = path.join(directory, `${name}.json`)
-  await fs.writeFile(`${file}.tmp`, JSON.stringify({ ...state, updatedAt: new Date().toISOString(), pid: process.pid }))
-  await fs.rename(`${file}.tmp`, file)
+  try {
+    await fs.mkdir(directory, { recursive: true })
+    const file = path.join(directory, `${name}.json`)
+    await fs.writeFile(`${file}.tmp`, JSON.stringify({ ...state, updatedAt: new Date().toISOString(), pid: process.pid }))
+    await fs.rename(`${file}.tmp`, file)
+    return true
+  } catch (error) {
+    const now = Date.now()
+    if (!healthWriteErrors.has(name) || now - healthWriteErrors.get(name) >= 60000) {
+      healthWriteErrors.set(name, now)
+      console.error(`${name}: could not write health status: ${safeError(error)}`)
+    }
+    return false
+  }
 }
 
 async function connectDatabase(signal, name) {
@@ -45,7 +58,7 @@ async function connectDatabase(signal, name) {
     } catch (error) {
       attempts += 1
       const message = safeError(error)
-      console.error(`${name}: database unavailable (${attempts}): ${message}`)
+      if (attempts === 1 || attempts % 10 === 0) console.error(`${name}: database unavailable (${attempts}): ${message}`)
       await health(name, { status: 'database_unavailable', error: message })
       await mongoose.disconnect()
       await pause(Math.min(1000 * 2 ** Math.min(attempts, 5), 30000), signal)

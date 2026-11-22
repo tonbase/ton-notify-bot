@@ -1,0 +1,10 @@
+[Unit]
+Description=Protect notification database disk reserve
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/sbin/ton-notify-disk-guard
+RuntimeDirectory=ton-notify-protection
+RuntimeDirectoryPreserve=yes
+RuntimeDirectoryMode=0700
+TimeoutStartSec=90

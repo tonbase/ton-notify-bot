@@ -1,0 +1,10 @@
+[Unit]
+Description=Check notification service for its owner every minute
+
+[Timer]
+OnBootSec=60s
+OnUnitInactiveSec=60s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

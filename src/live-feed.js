@@ -1,13 +1,12 @@
 const { rawAddress } = require('./address')
 const { participants } = require('./events')
-const { rawFallbacks } = require('./scanner')
 
 const FEED_TYPES = [
   'ton_transfer', 'jetton_transfer', 'nft_transfer', 'jetton_swap', 'jetton_mint',
   'jetton_burn', 'nft_mint', 'stake_deposit', 'stake_withdrawal_request', 'stake_withdrawal',
   'dex_deposit_liquidity', 'dex_withdraw_liquidity', 'auction_bid', 'change_dns',
   'delete_dns', 'renew_dns', 'election_deposit', 'election_recover', 'contract_deploy',
-  'call_contract', 'tick_tock', 'subscribe', 'unsubscribe', 'raw_message', 'account_update', 'other',
+  'call_contract', 'tick_tock', 'subscribe', 'unsubscribe', 'other',
 ]
 const technicalTypes = new Set(['excess', 'gasless_request'])
 
@@ -36,8 +35,7 @@ function chooseSample(page, type, state = {}, used = new Set()) {
   return ((state.selected || 0) % 4 === 3 && candidates.find(item => item.action.success === false)) || candidates[0] || null
 }
 
-function createPageLoader(client, now = Date.now) {
-  let tracePage, tracePageAt = 0
+function createPageLoader(client) {
   return async type => {
     if (type === 'tick_tock') {
       // The indexer's expanded tick/tock page can fail while a single action works.
@@ -51,26 +49,6 @@ function createPageLoader(client, now = Date.now) {
         if (account) action.accounts = [account]
       }
       return page
-    }
-    if (['raw_message', 'account_update'].includes(type)) {
-      if (!tracePage || now() - tracePageAt > 15000) {
-        tracePageAt = now()
-        tracePage = client.get('/traces', { limit: 30, sort: 'desc', include_actions: true,
-          end_utime: Math.floor(now() / 1000) - 120 })
-        tracePage.catch(() => { tracePage = null })
-      }
-      const page = await tracePage
-      const actions = []
-      for (const trace of page.traces || []) {
-        if (trace.is_incomplete || trace.trace_info?.trace_state !== 'complete'
-          || trace.trace_info.pending_messages > 0 || trace.trace_info.classification_state !== 'classified') continue
-        const transactions = Object.values(trace.transactions || {})
-        if (transactions.length < (trace.trace_info.transactions || 0) || !Array.isArray(trace.actions)) continue
-        for (const action of rawFallbacks(transactions, trace.actions)) {
-          actions.push({ ...action, end_lt: trace.end_lt, end_utime: trace.end_utime })
-        }
-      }
-      return { actions, metadata: page.metadata || {} }
     }
     return client.actions({ ...(type === 'other' ? {} : { action_type: type }),
       include_accounts: true, limit: 30, sort: 'desc' })

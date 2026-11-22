@@ -38,7 +38,10 @@ async function main() {
   const { config } = require('../src/config')
   const { TonCenter } = require('../src/toncenter')
   const { tonUsdPrice, REFRESH_MS } = require('../src/prices')
-  const { routeAction, sendPending } = require('../src/scanner')
+  const { routeAction } = require('../src/notification-router')
+  const { sendPending } = require('../src/delivery')
+  const { loadDeliveryState } = require('../src/delivery-state')
+  const { createTelegramSender } = require('../src/telegram-sender')
   const { FEED_TYPES, chooseSample, createPageLoader } = require('../src/live-feed')
   const { connectDatabase, shutdownSignal, workerLoop, safeError } = require('../src/runtime')
   const controller = new AbortController()
@@ -67,6 +70,8 @@ async function main() {
     feed.types ||= {}
     const api = new Api(config.botToken, { timeoutSeconds: 30 })
     if ((await api.getMe()).id !== owner.botId) throw Error('Bot does not match private owner')
+    const deliveryState = await loadDeliveryState()
+    const pacedApi = createTelegramSender(api, deliveryState)
     const client = new TonCenter({ attempts: 2, concurrency: 4 })
     await tonUsdPrice.refresh().catch(() => {})
     const loadPage = createPageLoader(client)
@@ -80,20 +85,21 @@ async function main() {
     session.sent = Math.max(session.sent || 0, await Delivery.countDocuments({ status: 'sent' }))
     const lastSentAt = Math.max(0, ...Object.values(session.messages).map(value => Date.parse(value.at) || 0))
     nextSendAt = lastSentAt + control.intervalMs
-    if (!session.introduced && active()) {
-      await api.sendMessage(owner.chatId,
+    const introduce = async () => {
+      if (session.introduced || !active()) return
+      await pacedApi.sendMessage(owner.chatId,
         'Включён непрерывный поток всех доступных типов событий.\n\nСначала — последняя доступная операция каждого типа, затем свежие. Публичные адреса выбираются автоматически; это выборка для просмотра, а не все транзакции сети. Типы чередуются, максимум одно уведомление в 5 секунд. Без ограничения по времени и числу сообщений.\n\n/live_stop — остановить\n/live_status — статус\nЗамечания можно писать ответом на сообщение.',
         { disable_notification: true, reply_markup: { inline_keyboard: [[{ text: '⏹ Остановить поток', callback_data: 'live:stop' }]] } })
-      session.introduced = true; writeLive(file, session)
+      session.introduced = true; nextSendAt = Date.now() + control.intervalMs
+      writeLive(file, session)
     }
-    const sender = privateSender(api, owner, active, async message => {
+    const sender = privateSender(pacedApi, owner, active, async message => {
       session.sent += 1; nextSendAt = Date.now() + control.intervalMs
       session.messages[message.message_id] = { at: new Date().toISOString() }
       session.messages = Object.fromEntries(Object.entries(session.messages).slice(-5000))
       // Telegram has already accepted the message; bookkeeping cannot undo that.
       try { writeLive(file, session); status() } catch (error) { console.error(safeError(error)) }
     })
-    const deliveryState = {}
     currentStatus = 'running'; status()
     await Promise.all([
       workerLoop('prices', () => tonUsdPrice.refresh(), { signal: controller.signal, intervalMs: REFRESH_MS }),
@@ -139,6 +145,8 @@ async function main() {
         if (user?.is_blocked || user?.is_deactivated) {
           writeLive('control.json', { ...control, enabled: false }); controller.abort(); return { blocked: true }
         }
+        await introduce()
+        if (Date.now() < nextSendAt) return { sent: session.sent }
         await sendPending(sender, deliveryState, { maxMessages: 1, chatId: owner.chatId })
         return { sent: session.sent }
       }, { signal: controller.signal, intervalMs: 1000 }),

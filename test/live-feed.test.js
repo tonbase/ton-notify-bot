@@ -23,21 +23,6 @@ test('failure sampling never rolls the cursor back or duplicates categories thro
   assert.equal(chooseSample(page, 'other'), null)
 })
 
-test('trace preview fallbacks wait for complete classification and reuse a bounded shared lookup', async () => {
-  let requests = 0
-  const complete = { trace_id: 't', end_lt: '100', trace_info: { trace_state: 'complete', classification_state: 'classified', transactions: 1 },
-    actions: [], transactions: { hash: { hash: 'hash', account: A, description: {} } } }
-  const loader = createPageLoader({ get: async (_path, params) => {
-    requests += 1; assert.equal(params.limit, 30); assert(params.include_actions)
-    return { traces: [complete, { ...complete, is_incomplete: true },
-      { ...complete, trace_info: { ...complete.trace_info, classification_state: 'unclassified' } }] }
-  } }, () => 200000)
-  const page = await loader('account_update')
-  assert.equal(page.actions.length, 1)
-  assert.equal(page.actions[0].type, 'account_update')
-  await loader('raw_message'); assert.equal(requests, 1)
-})
-
 test('system events use a confirmed transaction account when the action omits participants', async () => {
   const account = `-1:${'C'.repeat(64)}`
   const loader = createPageLoader({

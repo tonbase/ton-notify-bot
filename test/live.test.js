@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { privateSender } = require('../scripts/live-lab')
-const { sendPending } = require('../src/scanner')
+const { sendPending } = require('../src/delivery')
 const { Delivery } = require('../src/models')
 
 test('live delivery is restricted to the owner and stops before the next API call', async () => {

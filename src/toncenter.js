@@ -1,34 +1,6 @@
+const { RequestLimiter } = require('./request-limiter')
 const { config } = require('./config')
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-
-// Reservations happen before awaiting so concurrent callers share the limit.
-class RequestLimiter {
-  constructor(rps, concurrency, { now = Date.now, wait = sleep } = {}) {
-    this.spacing = Math.ceil(1000 / rps)
-    this.concurrency = concurrency
-    this.now = now
-    this.wait = wait
-    this.next = 0
-    this.active = 0
-    this.queue = []
-  }
-
-  async run(request) {
-    if (this.active >= this.concurrency) await new Promise((resolve) => this.queue.push(resolve))
-    else this.active += 1
-    try {
-      const at = Math.max(this.next, this.now())
-      this.next = at + this.spacing
-      if (at > this.now()) await this.wait(at - this.now())
-      return await request()
-    } finally {
-      const next = this.queue.shift()
-      if (next) next()
-      else this.active -= 1
-    }
-  }
-}
+const { setTimeout: sleep } = require('node:timers/promises')
 
 function retryDelay(header, attempt) {
   const seconds = Number(header)
@@ -101,12 +73,6 @@ class TonCenter {
     if (!Array.isArray(data?.actions)) throw new Error('Invalid actions response')
     return data
   }
-
-  async transactionsByMasterchainBlock(params) {
-    const data = await this.get('/transactionsByMasterchainBlock', params)
-    if (!Array.isArray(data?.transactions)) throw new Error('Invalid transactions response')
-    return data
-  }
 }
 
-module.exports = { TonCenter, RequestLimiter, retryDelay, sleep }
+module.exports = { TonCenter }

@@ -5,7 +5,8 @@ const assert = require('node:assert/strict')
 const { mongoose, Address, User, Delivery } = require('../src/models')
 const { TonCenter } = require('../src/toncenter')
 const { rawAddress } = require('../src/address')
-const { loadWatched, scanBlock, reconcileTraces } = require('../src/scanner')
+const { loadWatched } = require('../src/notification-router')
+const { scanBlock } = require('../src/block-scanner')
 const { participants } = require('../src/events')
 
 async function main() {
@@ -50,14 +51,15 @@ async function main() {
       console.log(`PASS ${sample.type}: ${sample.address} → durable notification ${delivery._id.slice(0, 12)}`)
       preview.push(`<article>${delivery.text}</article>`)
     }
-    await reconcileTraces(client)
     const before = await Delivery.countDocuments()
     for (const seqno of [...new Set(samples.map((sample) => sample.action.trace_mc_seqno_end))]) await scanBlock(client, seqno, watched)
     assert.equal(await Delivery.countDocuments(), before, 'Block replay must not duplicate deliveries')
+    assert.equal((await mongoose.connection.db.listCollections({ name: 'trace_tasks' }).toArray()).length, 0,
+      'Scanning must not create a trace queue')
     const directory = path.join(__dirname, '..', '.local')
     await fs.mkdir(directory, { recursive: true })
     await fs.writeFile(path.join(directory, 'live-notifications.html'), `<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Compact GRAM notifications</title><style>*{box-sizing:border-box}body{font:15px system-ui;background:#eef3f7;max-width:640px;margin:24px auto;padding:0 16px}article{white-space:pre-wrap;overflow-wrap:anywhere;background:white;border-radius:12px;padding:12px 14px;margin:10px 0;line-height:1.5}a{color:#007dad;text-decoration:none}a:hover{text-decoration:underline}h1{font-size:22px}p{color:#586779;font-size:13px}</style><h1>Компактные уведомления</h1><p>Живые операции: сумма или NFT в первой строке, участники и ссылка на транзакцию — во второй. Длинные строки переносятся по ширине экрана.</p>${preview.join('\n')}</html>`)
-    console.log('PASS trace reconciliation and duplicate-free block replay; preview saved in .local/live-notifications.html')
+    console.log('PASS duplicate-free block replay; preview saved in .local/live-notifications.html')
   } finally {
     await mongoose.connection.dropDatabase()
     await mongoose.disconnect()
